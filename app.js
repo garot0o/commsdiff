@@ -1,5 +1,5 @@
 history.scrollRestoration = 'manual';
-const V = 6; // bump when audio files change, so browsers don't replay old clips
+const V = 7; // bump when audio files change, so browsers don't replay old clips
 const D = window.D;
 const app = document.getElementById('app'), root = document.documentElement;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -91,18 +91,25 @@ function draw() {
   if (lenis) lenis.scrollTo(0, {immediate: true, force: true}); scrollTo({top: 0, behavior: 'instant'});
   reveal();
 }
+const wipeBox = document.getElementById('wipe');
+const settled = a => Promise.race([a.finished.catch(() => {}), new Promise(r => setTimeout(r, 1400))]);
 async function route() {
   if (!ready || !fxOn || wiping) { ready = true; draw(); return; }
   wiping = true;
-  const opt = {duration: 620, easing: 'cubic-bezier(.65,0,.15,1)', fill: 'forwards'};
-  wipeB.animate([{transform: 'translateY(102%)'}, {transform: 'translateY(0)'}], opt);
-  await wipeA.animate([{transform: 'translateY(102%)'}, {transform: 'translateY(0)'}], {...opt, delay: 90}).finished;
-  draw();
-  const out = {duration: 760, easing: 'cubic-bezier(.65,0,.15,1)', fill: 'forwards'};
-  wipeA.animate([{transform: 'translateY(0)'}, {transform: 'translateY(-102%)'}], out);
-  await wipeB.animate([{transform: 'translateY(0)'}, {transform: 'translateY(-102%)'}], {...out, delay: 90}).finished;
-  wipeA.getAnimations().concat(wipeB.getAnimations()).forEach(a => a.cancel());
-  wiping = false;
+  wipeBox.style.display = 'block';
+  try {
+    const opt = {duration: 620, easing: 'cubic-bezier(.65,0,.15,1)', fill: 'forwards'};
+    wipeB.animate([{transform: 'translateY(102%)'}, {transform: 'translateY(0)'}], opt);
+    await settled(wipeA.animate([{transform: 'translateY(102%)'}, {transform: 'translateY(0)'}], {...opt, delay: 90}));
+    draw();
+    const out = {duration: 760, easing: 'cubic-bezier(.65,0,.15,1)', fill: 'forwards'};
+    wipeA.animate([{transform: 'translateY(0)'}, {transform: 'translateY(-102%)'}], out);
+    await settled(wipeB.animate([{transform: 'translateY(0)'}, {transform: 'translateY(-102%)'}], {...out, delay: 90}));
+  } finally {
+    wipeA.getAnimations().concat(wipeB.getAnimations()).forEach(a => a.cancel());
+    wipeBox.style.display = 'none';
+    wiping = false;
+  }
 }
 addEventListener('hashchange', route);
 
