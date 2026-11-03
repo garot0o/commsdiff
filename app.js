@@ -1,5 +1,5 @@
 history.scrollRestoration = 'manual';
-const V = 5; // bump when audio files change, so browsers don't replay old clips
+const V = 6; // bump when audio files change, so browsers don't replay old clips
 const D = window.D;
 const app = document.getElementById('app'), root = document.documentElement;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -128,7 +128,7 @@ function home() {
   const words = [...document.querySelectorAll('#slow span')];
   new IntersectionObserver((en, o) => { if (!en[0].isIntersecting) return; o.disconnect();
     words.forEach((w, i) => setTimeout(() => w.classList.add('gone'), 550 + i * 150));
-    setTimeout(() => document.getElementById('fast').classList.add('on'), 550 + words.length * 150 + 200);
+    setTimeout(() => document.getElementById('fast')?.classList.add('on'), 550 + words.length * 150 + 200);
   }, {threshold: .5}).observe(document.getElementById('slow'));
 }
 const SPOTS = [[.40,.02,-5,26],[.70,.05,4,-34],[.47,.20,3,18],[.80,.24,-6,-22],[.27,.28,-3,40],[.64,.34,7,30],[.03,.05,6,-44],[.03,.22,-7,24],[.86,.44,-4,-16]];
