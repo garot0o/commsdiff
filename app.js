@@ -1,5 +1,5 @@
 history.scrollRestoration = 'manual';
-const V = 7; // bump when audio files change, so browsers don't replay old clips
+const V = 8; // bump when audio files change, so browsers don't replay old clips
 const D = window.D;
 const app = document.getElementById('app'), root = document.documentElement;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -16,11 +16,13 @@ fxBtn.onclick = () => { fxOn = !fxOn; store.set('fx', fxOn ? 'on' : 'off'); appl
 
 /* smooth scrolling and the progress bar */
 const lenis = window.Lenis ? new Lenis({duration: 1.15, smoothWheel: true, easing: t => 1 - Math.pow(1 - t, 3.2)}) : null;
-const bar = document.getElementById('bar');
+const bar = document.getElementById('bar'), toTop = document.getElementById('toTop');
+toTop.onclick = () => { lenis && fxOn ? lenis.scrollTo(0, {duration: .75, force: true}) : scrollTo({top: 0, behavior: 'instant'}); };
 function frame(t) {
   if (lenis) lenis.raf(t);
   const h = document.documentElement.scrollHeight - innerHeight, y = scrollY;
   bar.style.transform = `scaleX(${h > 0 ? Math.min(1, y / h) : 0})`;
+  toTop.classList.toggle('on', y > innerHeight * .6);
   const ht = document.querySelector('.htitle'); if (ht && y < innerHeight * 1.2 && fxOn && innerWidth > 860) { ht.style.transform = `translateY(${-y * .1}px)`; ht.style.opacity = Math.max(0, 1 - y / (innerHeight * .75)); }
   parallax(); drawGlow();
   requestAnimationFrame(frame);
@@ -207,8 +209,9 @@ function game(k) {
 
 /* map viewer */
 const box = document.getElementById('box'), boxImg = document.getElementById('boxImg'); let mg, mi;
-function openMap(g, i) { mg = g; showMap(i); box.showModal(); if (lenis) lenis.stop(); }
-box.addEventListener('close', () => { if (lenis) lenis.start(); });
+let mapY = 0;
+function openMap(g, i) { mg = g; mapY = scrollY; showMap(i); box.showModal(); if (lenis) lenis.stop(); }
+box.addEventListener('close', () => { if (lenis) { lenis.start(); lenis.scrollTo(mapY, {immediate: true, force: true}); } scrollTo({top: mapY, behavior: 'instant'}); });
 function showMap(i) { mi = (i + mg.maps.length) % mg.maps.length; boxImg.src = `maps/${mg.maps[mi]}.${mg.mapExt}`; boxImg.alt = `${mg.maps[mi]} map with English position names`; boxImg.style.animation = 'none'; void boxImg.offsetWidth; boxImg.style.animation = ''; }
 document.getElementById('boxClose').onclick = () => box.close();
 document.getElementById('boxPrev').onclick = () => showMap(mi - 1);
@@ -251,7 +254,8 @@ function compass(host) {
     const a = (Math.atan2(x, -y) * 180 / Math.PI + 360) % 360, off = Math.round(Math.min(Math.abs(a - bearing), 360 - Math.abs(a - bearing)));
     done = true; ndl.style.opacity = 1; ndl.style.transform = `rotate(${a}deg)`; ans.style.opacity = 1; ans.style.transform = `rotate(${bearing}deg)`;
     if (off <= 15) sparks(e.clientX, e.clientY, 18, 110);
-    res.innerHTML = off <= 15 ? `Good call, only ${off} degrees off.<span>Отлично, ошибка всего ${off}°.</span>` : `${off} degrees off. The dotted line shows ${bearing}.<span>Ошибка ${off}°. Пунктир показывает ${bearing}.</span>`; });
+    const deg = off === 1 ? 'degree' : 'degrees';
+    res.innerHTML = off === 0 ? 'Perfect call, right on target.<span>Идеально, точно в цель.</span>' : off <= 15 ? `Good call, only ${off} ${deg} off.<span>Отлично, ошибка всего ${off}°.</span>` : `${off} ${deg} off. The dotted line shows ${bearing}.<span>Ошибка ${off}°. Пунктир показывает ${bearing}.</span>`; });
   host.querySelector('#nx').onclick = fresh; fresh();
 }
 
