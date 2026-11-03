@@ -1,5 +1,5 @@
 history.scrollRestoration = 'manual';
-const V = 8; // bump when audio files change, so browsers don't replay old clips
+const V = 9; // bump when audio files change, so browsers don't replay old clips
 const D = window.D;
 const app = document.getElementById('app'), root = document.documentElement;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
