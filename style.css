@@ -85,20 +85,23 @@ a{color:inherit}button{font:inherit;color:inherit}
 .bbtn span{font-weight:400;font-size:.82em}
 .bwrap{display:grid;place-items:center;perspective:1700px;min-width:0}
 .bmap{--mw:min(100%,calc(80vh*4/3));position:relative;width:var(--mw);aspect-ratio:4/3;transform-style:preserve-3d;will-change:transform}
-.pn{position:absolute;width:50%;height:50%;transform-style:preserve-3d}
+.pn{position:absolute;width:50%;height:50%;transform-style:preserve-3d;will-change:transform}
 .bl{left:0;top:50%}.br{left:50%;top:50%}.tl{left:0;top:0;height:50%;width:50%}.tr{left:50%;top:0}
 .flap{position:absolute;inset:0 0 50% 0;transform-origin:50% 100%;transform-style:preserve-3d;will-change:transform}
 .flap .pn{height:100%;top:0}
 .wing{transform-origin:0 50%;will-change:transform}
-.pf,.pb{position:absolute;inset:0;backface-visibility:hidden;overflow:hidden;background:#EDE4D3}
-.pf svg{display:block;width:100%;height:100%}
-.pb{transform:rotateY(180deg);background:#D9CFBC}
+.pf,.pb{position:absolute;inset:0;backface-visibility:hidden;overflow:hidden;background:#BEAF92 url(brief-map.webp) 0 0/200% 200% no-repeat}
+.bl>.pf{background-position:0 100%}.br>.pf{background-position:100% 100%}.tr>.pf{background-position:100% 0}
+.pb{transform:rotateY(180deg);background:#A09278 url(brief-back.webp) center/cover}
 .flap>.pn>.pb{transform:rotateX(180deg)}.flap>.wing>.pb{transform:rotateY(180deg)}
-.pf::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 1px rgba(43,37,40,.22)}
 .shd{position:absolute;inset:0;background:#120A0C;opacity:0;pointer-events:none}
 .glarebox{position:absolute;inset:0;overflow:hidden;pointer-events:none;transform:translateZ(1px)}
-.glarebox i{position:absolute;top:-10%;bottom:-10%;width:34%;background:rgba(255,250,240,.55);opacity:0;will-change:transform}
-.radar{position:absolute;inset:0;overflow:hidden;opacity:0;background:rgba(14,13,15,.88);pointer-events:none;transform:translateZ(2px)}
+.glarebox i{position:absolute;opacity:0}
+/* a lamp, not a white stripe: soft falloff, a shadow on the far side, a warm core that leaves the ink dark */
+.glarebox .band{top:-12%;bottom:-12%;left:0;width:100%;will-change:transform,opacity;background:linear-gradient(90deg,transparent 0,rgba(38,24,12,.13) 16%,rgba(255,238,205,.05) 34%,rgba(255,240,212,.2) 47%,rgba(255,246,226,.27) 51%,rgba(255,240,212,.16) 57%,rgba(255,238,205,.04) 72%,transparent 90%)}
+/* the same light catching the raised creases of the paper as it passes */
+.glarebox .crease{inset:0;--x:-50%;background:url(brief-glint.webp) 0 0/100% 100% no-repeat;-webkit-mask-image:linear-gradient(104deg,transparent calc(var(--x) - 20%),#000 var(--x),transparent calc(var(--x) + 20%));mask-image:linear-gradient(104deg,transparent calc(var(--x) - 20%),#000 var(--x),transparent calc(var(--x) + 20%))}
+.radar{position:absolute;inset:-2px;overflow:hidden;opacity:0;background:rgba(14,13,15,.88);pointer-events:none;transform:translateZ(2px)}
 .radar svg{position:absolute;inset:0;width:100%;height:100%}
 .sweep{position:absolute;left:50%;top:50%;width:140%;aspect-ratio:1;margin:-70% 0 0 -70%;border-radius:50%;background:conic-gradient(from 0deg,rgba(125,245,168,.2),rgba(125,245,168,0) 36deg,transparent 360deg)}
 .sweep.live{animation:spin 7s linear infinite}
