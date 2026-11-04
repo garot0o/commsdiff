@@ -1,61 +1,83 @@
 history.scrollRestoration = 'manual';
-const V = 9; // bump when audio files change, so browsers don't replay old clips
+const V = 10; // bump when audio files change, so browsers don't replay old clips
 const D = window.D;
 const app = document.getElementById('app'), root = document.documentElement;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const ACCENT = {cs2:'#FFB04A',valorant:'#FF5A6E',apex:'#3DDAC3',overwatch:'#FF8F45',rivals:'#B880FF',basics:'#6FB6FF'};
-const MEANING = {One:'Один',Two:'Двое',Three:'Трое',Last:'Последний',Palace:'на паласе','B apps':'на квартирах B',Mid:'на миде',Long:'на лонге',Window:'в окне',Low:'мало ХП',Lit:'подбит','One AWP':'один со снайперкой','Smoke up':'смоук стоит',Rushing:'идут рашем','Fall back':'откатываемся',Push:'давим',Rotate:'перекидываемся',Hold:'держим позицию','A main':'на A мейне','B long':'на B лонге',Heaven:'на хевене',Garage:'в гараже','Hit 90':'попал на 90','No dash':'рывка нет','Op up':'есть Оператор','No util':'умений нет','Ult ready':'ульта готова','60':'60 градусов','150':'150 градусов','240':'240 градусов','330':'330 градусов',Cracked:'щит сломан','One shot':'на один выстрел',Knocked:'нокнут','High ground':'на высоте','Push now':'давим сейчас',Reset:'отходим и лечимся','Take high ground':'занимаем высоту'};
+const ACCENT = {cs2:'#E8C15A',valorant:'#FF6B7E',apex:'#47CDB8',overwatch:'#F58F4A',rivals:'#B58CF0',basics:'#7DB3E8',about:'#FFB547'};
+const MEANING = {One:'Один',Two:'Двое',Three:'Трое',Last:'Последний',Palace:'на паласе','B apps':'на квартирах B',Mid:'на миде',Long:'на лонге',Window:'в окне',Low:'мало ХП',Lit:'подбит','One AWP':'один со снайперкой','Smoke up':'смоук стоит',Rushing:'идут рашем','Fall back':'отходим',Push:'давим',Rotate:'перетягиваемся',Hold:'держим позицию','A main':'на A мейне','B long':'на B лонге',Heaven:'на хевене',Garage:'в гараже','Hit 90':'попал на 90','No dash':'рывка нет','Op up':'есть Оператор','No util':'умений нет','Ult ready':'ульта готова','60':'60 градусов','150':'150 градусов','240':'240 градусов','330':'330 градусов',Cracked:'щит сломан','One shot':'на один выстрел',Knocked:'нокнут','High ground':'на высоте','Push now':'давим сейчас',Reset:'отходим и лечимся','Take high ground':'занимаем высоту'};
 const COL_RU = {'How many':'Сколько','Where':'Где',"What's happening":'Что происходит','What we do':'Что делаем'};
 
-/* The site animates even when Windows animation effects are off; the header button is the opt-out. */
+/* settings, kept in localStorage when it is available */
 const store = {get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
-let fxOn = store.get('fx') !== 'off';
-const fxBtn = document.getElementById('fx');
-function applyFx() { root.classList.toggle('calm', !fxOn); fxBtn.setAttribute('aria-pressed', fxOn); fxBtn.lastChild.textContent = fxOn ? 'Snow on' : 'Snow off'; }
-fxBtn.onclick = () => { fxOn = !fxOn; store.set('fx', fxOn ? 'on' : 'off'); applyFx(); };
+const systemCalm = matchMedia('(prefers-reduced-motion:reduce)').matches;
+let saved = {}; try { saved = JSON.parse(store.get('cd-settings')) || {}; } catch (e) {}
+const cfg = {snow: saved.snow === true, anim: typeof saved.anim === 'boolean' ? saved.anim : !systemCalm, vol: typeof saved.vol === 'number' ? saved.vol : .85};
+const saveCfg = () => store.set('cd-settings', JSON.stringify(cfg));
+const setBtn = document.getElementById('setBtn'), setPanel = document.getElementById('setPanel'), motionTip = document.getElementById('motionTip');
+function applyFx() {
+  root.classList.toggle('calm', !cfg.anim);
+  if (lenis) lenis.options.smoothWheel = cfg.anim;
+  document.getElementById('optSnow').checked = cfg.snow;
+  document.getElementById('optAnim').checked = cfg.anim;
+  document.getElementById('optVol').value = Math.round(cfg.vol * 100);
+  document.getElementById('volVal').textContent = Math.round(cfg.vol * 100) + '%';
+  if (cur) cur.volume = cfg.vol;
+  motionTip.hidden = cfg.anim || !systemCalm || saved.anim !== undefined;
+}
+function panelOpen(on, refocus = true) {
+  setPanel.hidden = !on; setBtn.setAttribute('aria-expanded', on);
+  if (on) document.getElementById('optSnow').focus(); else if (refocus) setBtn.focus();
+}
+setBtn.onclick = () => panelOpen(setPanel.hidden);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !setPanel.hidden) panelOpen(false); });
+document.addEventListener('pointerdown', e => { if (!setPanel.hidden && !setPanel.contains(e.target) && !setBtn.contains(e.target)) panelOpen(false, false); });
+document.getElementById('optSnow').onchange = e => { cfg.snow = e.target.checked; saveCfg(); applyFx(); };
+document.getElementById('optAnim').onchange = e => { cfg.anim = e.target.checked; saved.anim = cfg.anim; saveCfg(); applyFx(); };
+document.getElementById('optVol').oninput = e => { cfg.vol = e.target.value / 100; saveCfg(); applyFx(); };
+document.getElementById('tipOn').onclick = () => { cfg.anim = true; saved.anim = true; saveCfg(); applyFx(); };
+document.getElementById('tipOff').onclick = () => { saved.anim = false; cfg.anim = false; saveCfg(); applyFx(); };
 
 /* smooth scrolling and the progress bar */
-const lenis = window.Lenis ? new Lenis({duration: 1.15, smoothWheel: true, easing: t => 1 - Math.pow(1 - t, 3.2)}) : null;
+const lenis = window.Lenis ? new Lenis({duration: 1.15, smoothWheel: cfg.anim, easing: t => 1 - Math.pow(1 - t, 3.2)}) : null;
 const bar = document.getElementById('bar'), toTop = document.getElementById('toTop');
-toTop.onclick = () => { lenis && fxOn ? lenis.scrollTo(0, {duration: .75, force: true}) : scrollTo({top: 0, behavior: 'instant'}); };
+toTop.onclick = () => { lenis && cfg.anim ? lenis.scrollTo(0, {duration: .75, force: true}) : (lenis ? lenis.scrollTo(0, {immediate: true, force: true}) : scrollTo({top: 0, behavior: 'instant'})); };
 function frame(t) {
   if (lenis) lenis.raf(t);
   const h = document.documentElement.scrollHeight - innerHeight, y = scrollY;
   bar.style.transform = `scaleX(${h > 0 ? Math.min(1, y / h) : 0})`;
   toTop.classList.toggle('on', y > innerHeight * .6);
-  const ht = document.querySelector('.htitle'); if (ht && y < innerHeight * 1.2 && fxOn && innerWidth > 860) { ht.style.transform = `translateY(${-y * .1}px)`; ht.style.opacity = Math.max(0, 1 - y / (innerHeight * .75)); }
-  parallax(); drawGlow();
+  parallax(); drawGlow(); drawBriefing();
   requestAnimationFrame(frame);
 }
-function scrollTo2(el) { lenis ? lenis.scrollTo(el, {offset: -14, duration: 1.5}) : el.scrollIntoView(); }
+function scrollTo2(el) { lenis ? lenis.scrollTo(el, cfg.anim ? {offset: -14, duration: 1.5} : {offset: -14, immediate: true, force: true}) : el.scrollIntoView(); }
 
 /* snow: three depths, drifts with the mouse */
 const cv = document.getElementById('snow'), cx = cv.getContext('2d'); let flakes = [], wind = 0, windTo = 0;
-const mk = any => { const z = Math.random(); return {x: Math.random() * innerWidth, y: any ? Math.random() * innerHeight : -8, z, r: .9 + z * 2.5, s: .25 + z * .95, p: Math.random() * 6.3, a: .3 + z * .55}; };
+const mk = any => { const z = Math.random(); return {x: Math.random() * innerWidth, y: any ? Math.random() * innerHeight : -8, z, r: .6 + z * 1.3, s: .2 + z * .6, p: Math.random() * 6.3, a: .22 + z * .38}; };
 function sizeSnow() { const r = Math.min(devicePixelRatio || 1, 1.5); cv.width = innerWidth * r; cv.height = innerHeight * r; cx.setTransform(r, 0, 0, r, 0, 0);
-  const n = Math.round(Math.min(150, innerWidth / 11)); flakes = [...Array(n)].map(() => mk(true)); }
+  const n = Math.round(Math.min(90, innerWidth / 16)); flakes = [...Array(n)].map(() => mk(true)); }
 function snow() {
   cx.clearRect(0, 0, innerWidth, innerHeight);
-  if (fxOn && !document.hidden) { wind += (windTo - wind) * .02; windTo *= .992;
-    for (const f of flakes) { f.p += .012; f.y += f.s; f.x += Math.sin(f.p) * .42 + wind * (.4 + f.z);
-      if (f.y > innerHeight + 8) Object.assign(f, mk(false)); if (f.x > innerWidth + 8) f.x = -8; if (f.x < -8) f.x = innerWidth + 8;
-      cx.beginPath(); cx.fillStyle = `rgba(255,255,255,${f.a})`; cx.arc(f.x, f.y, f.r, 0, 6.3); cx.fill(); } }
+  if (cfg.snow && !document.hidden) { wind += (windTo - wind) * .02; windTo *= .992;
+    for (const f of flakes) { if (cfg.anim) { f.p += .012; f.y += f.s; f.x += Math.sin(f.p) * .3 + wind * (.3 + f.z);
+      if (f.y > innerHeight + 8) Object.assign(f, mk(false)); if (f.x > innerWidth + 8) f.x = -8; if (f.x < -8) f.x = innerWidth + 8; }
+      cx.beginPath(); cx.fillStyle = `rgba(239,233,225,${f.a})`; cx.arc(f.x, f.y, f.r, 0, 6.3); cx.fill(); } }
   requestAnimationFrame(snow);
 }
 addEventListener('resize', sizeSnow);
 
 /* soft light under the cursor, sticker tilt, hero parallax */
 const glow = document.getElementById('glow'); let mx = innerWidth / 2, my = innerHeight / 2, gx = mx, gy = my, px = 0, py = 0, lastX = mx;
-addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; mx = e.clientX; my = e.clientY; windTo += (mx - lastX) * .0035; windTo = Math.max(-2.2, Math.min(2.2, windTo)); lastX = mx; glow.style.opacity = fxOn ? 1 : 0;
-  const st = e.target.closest && e.target.closest('.st'); if (st && !st.disabled && fxOn) { const r = st.getBoundingClientRect(); st.style.setProperty('--ry', ((e.clientX - r.left) / r.width - .5) * 16 + 'deg'); st.style.setProperty('--rx', -((e.clientY - r.top) / r.height - .5) * 16 + 'deg'); } }, {passive: true});
+addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; mx = e.clientX; my = e.clientY; windTo += (mx - lastX) * .0035; windTo = Math.max(-2.2, Math.min(2.2, windTo)); lastX = mx; glow.style.opacity = cfg.anim ? 1 : 0;
+  const st = e.target.closest && e.target.closest('.st'); if (st && !st.disabled && cfg.anim) { const r = st.getBoundingClientRect(); st.style.setProperty('--ry', ((e.clientX - r.left) / r.width - .5) * 16 + 'deg'); st.style.setProperty('--rx', -((e.clientY - r.top) / r.height - .5) * 16 + 'deg'); } }, {passive: true});
 document.addEventListener('pointerout', e => { const st = e.target.closest && e.target.closest('.st'); if (st) { st.style.setProperty('--rx', '0deg'); st.style.setProperty('--ry', '0deg'); } });
 function drawGlow() { gx += (mx - gx) * .07; gy += (my - gy) * .07; glow.style.transform = `translate3d(${gx}px,${gy}px,0)`; }
-function parallax() { px += ((mx / innerWidth - .5) - px) * .05; py += ((my / innerHeight - .5) - py) * .05; if (!fxOn || innerWidth < 860) return;
+function parallax() { px += ((mx / innerWidth - .5) - px) * .05; py += ((my / innerHeight - .5) - py) * .05; if (!cfg.anim || innerWidth < 860) return;
   document.querySelectorAll('.ht:not(.drag)').forEach(h => { const d = +h.dataset.depth; h.style.translate = `${px * d}px ${py * d}px`; }); }
 
 /* small sparkle when a sticker is pressed */
-function sparks(x, y, count = 12, spread = 80) { if (!fxOn) return;
-  for (let i = 0; i < count; i++) { const s = document.createElement('i'); s.className = 'spark'; s.style.cssText = `left:${x}px;top:${y}px;background:${['#fff','#FF5C9E','#A23FD8','#8E7CFF'][i % 4]}`; document.body.append(s);
+function sparks(x, y, count = 12, spread = 80) { if (!cfg.anim) return;
+  for (let i = 0; i < count; i++) { const s = document.createElement('i'); s.className = 'spark'; s.style.cssText = `left:${x}px;top:${y}px;background:${['#EFE9E1','#FFB547','#EFE9E1','#EA4656'][i % 4]}`; document.body.append(s);
     const a = Math.random() * 6.3, r = spread * (.5 + Math.random()); s.animate([{transform: 'translate(-50%,-50%) scale(1)', opacity: 1}, {transform: `translate(calc(-50% + ${Math.cos(a) * r}px),calc(-50% + ${Math.sin(a) * r + 24}px)) scale(.15)`, opacity: 0}], {duration: 800 + Math.random() * 520, easing: 'cubic-bezier(.16,1,.3,1)'}).onfinish = () => s.remove(); } }
 
 /* audio: pre-rendered neural clips, browser speech only as a fallback */
@@ -64,9 +86,9 @@ function stop() { if (cur) { cur.onerror = cur.onended = null; cur.pause(); cur 
 function speakNext() {
   if (!queue.length) { cur = null; if (curBtn) curBtn.classList.remove('playing'); curBtn = null; return; }
   const t = queue.shift(), a = new Audio('audio/' + D.slug(t) + '.mp3?v=' + V);
-  cur = a;
+  cur = a; a.volume = cfg.vol;
   a.onended = speakNext;
-  const fail = () => { if (a !== cur) return; try { const u = new SpeechSynthesisUtterance(D.say[t] || t); u.lang = 'en-US'; u.onend = speakNext; speechSynthesis.speak(u); } catch (e) { speakNext(); } };
+  const fail = () => { if (a !== cur) return; try { const u = new SpeechSynthesisUtterance(D.say[t] || t); u.lang = 'en-US'; u.volume = cfg.vol; u.onend = speakNext; speechSynthesis.speak(u); } catch (e) { speakNext(); } };
   a.onerror = fail;
   a.play().catch(e => { if (e.name !== 'AbortError') fail(); });
 }
@@ -78,42 +100,135 @@ document.addEventListener('click', e => { const b = e.target.closest('[data-say]
 let io;
 function reveal() { if (io) io.disconnect(); io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), {rootMargin: '0px 0px -7% 0px', threshold: .08});
   document.querySelectorAll('[data-r]').forEach(el => { const sib = [...el.parentElement.children].filter(c => c.hasAttribute('data-r')); el.style.setProperty('--d', Math.min(sib.indexOf(el), 10) * .075 + 's'); io.observe(el); }); }
-const letters = s => [...s].map((c, i) => c === ' ' ? ' ' : `<span class="ltr" style="--d:${(.12 + i * .045).toFixed(3)}s;--m:${(i / Math.max(1, s.length - 1)).toFixed(2)}">${esc(c)}</span>`).join('');
+const letters = s => { let n = 0; return s.split(' ').map(w => `<span class="w">${[...w].map(c => `<span class="ltr" style="--d:${(.12 + n++ * .045).toFixed(3)}s">${esc(c)}</span>`).join('')}</span>`).join(' '); };
 
-/* page change: two gradient panels sweep across, the new page loads behind them */
-const wipeA = document.querySelector('#wipe b:nth-child(1)'), wipeB = document.querySelector('#wipe b:nth-child(2)'); let wiping = false, ready = false;
+/* page change: a short loading screen with a tip, 600 ms at most */
+const TIPS = [
+  ['Nobody says "cracked" in CS2.', 'В CS2 никто не говорит «cracked».'],
+  ['Say the number first, so your team knows the danger.', 'Сначала назовите число, чтобы команда понимала опасность.'],
+  ['A good call takes one or two seconds.', 'Хороший колл длится одну-две секунды.'],
+  ['Saying it with a mistake beats saying nothing.', 'Сказать с ошибкой лучше, чем промолчать.'],
+  ['In Apex, use compass degrees instead of place names.', 'В Apex вместо названий мест называйте градусы компаса.'],
+  ['It is "the spike" in Valorant and "the bomb" in CS2.', 'В Valorant это «spike», а в CS2 «bomb».'],
+  ['"Cache" sounds like "cash".', '«Cache» звучит как «cash».'],
+  ['Say "Flash for me", not "Throw me flash".', 'Говорите «Flash for me», а не «Throw me flash».'],
+  ['Learn five places on a map first.', 'Для начала выучите пять мест на карте.'],
+  ['"Peel for me" asks your team to pull an enemy off you.', '«Peel for me» значит: отгоните от меня врага.'],
+  ['In Overwatch and Rivals, call out the big ultimates.', 'В Overwatch и Rivals сообщайте о главных ультах.'],
+  ['"Drop me" asks a teammate to buy you a gun.', '«Drop me» значит: купи мне оружие.'],
+  ['"Jett dashed" means she can\'t escape now.', '«Jett dashed» значит, что сбежать Джетт уже не сможет.'],
+];
+const wipeBox = document.getElementById('wipe'), wipeBar = document.getElementById('wipeBar'), wipeTip = document.getElementById('wipeTip'), wipeRu = document.getElementById('wipeRu');
+let wiping = false, ready = false, lastTip = -1;
+const pause = ms => new Promise(r => setTimeout(r, ms));
+async function route() {
+  if (!ready || !cfg.anim || wiping) { ready = true; draw(); return; }
+  wiping = true;
+  let n; do { n = Math.floor(Math.random() * TIPS.length); } while (n === lastTip); lastTip = n;
+  wipeTip.textContent = TIPS[n][0]; wipeRu.textContent = TIPS[n][1];
+  const k = location.hash.replace(/^#\/?/, '');
+  wipeBar.style.background = ACCENT[k] || 'var(--signal)';
+  wipeBox.style.display = 'flex';
+  try {
+    wipeBar.animate([{transform: 'scaleX(0)'}, {transform: 'scaleX(1)'}], {duration: 480, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards'});
+    wipeBox.animate([{opacity: 0}, {opacity: 1}], {duration: 110, easing: 'ease-out', fill: 'forwards'});
+    await pause(130);
+    draw();
+    await pause(350);
+    await Promise.race([wipeBox.animate([{opacity: 1}, {opacity: 0}], {duration: 110, easing: 'ease-in', fill: 'forwards'}).finished.catch(() => {}), pause(160)]);
+  } finally {
+    wipeBar.getAnimations().concat(wipeBox.getAnimations()).forEach(a => a.cancel());
+    wipeBox.style.display = 'none';
+    wiping = false;
+  }
+}
 const GAMES = Object.keys(D.games);
 document.getElementById('nav').innerHTML = GAMES.map(k => `<a href="#/${k}">${D.games[k].name}</a>`).join('') + '<a href="#/basics">Basics</a>';
 function draw() {
   const k = location.hash.replace(/^#\/?/, '');
   stop();
-  root.dataset.g = D.games[k] ? k : k === 'basics' ? 'basics' : 'home';
-  if (D.games[k]) game(k); else if (k === 'basics') basics(); else home();
+  root.dataset.g = D.games[k] ? k : k === 'basics' || k === 'about' ? k : 'home';
+  if (D.games[k]) game(k); else if (k === 'basics') basics(); else if (k === 'about') about(); else home();
   document.querySelectorAll('#nav a').forEach(a => a.getAttribute('href') === '#/' + k ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
   if (lenis) lenis.scrollTo(0, {immediate: true, force: true}); scrollTo({top: 0, behavior: 'instant'});
   reveal();
 }
-const wipeBox = document.getElementById('wipe');
-const settled = a => Promise.race([a.finished.catch(() => {}), new Promise(r => setTimeout(r, 1400))]);
-async function route() {
-  if (!ready || !fxOn || wiping) { ready = true; draw(); return; }
-  wiping = true;
-  wipeBox.style.display = 'block';
-  try {
-    const opt = {duration: 620, easing: 'cubic-bezier(.65,0,.15,1)', fill: 'forwards'};
-    wipeB.animate([{transform: 'translateY(102%)'}, {transform: 'translateY(0)'}], opt);
-    await settled(wipeA.animate([{transform: 'translateY(102%)'}, {transform: 'translateY(0)'}], {...opt, delay: 90}));
-    draw();
-    const out = {duration: 760, easing: 'cubic-bezier(.65,0,.15,1)', fill: 'forwards'};
-    wipeA.animate([{transform: 'translateY(0)'}, {transform: 'translateY(-102%)'}], out);
-    await settled(wipeB.animate([{transform: 'translateY(0)'}, {transform: 'translateY(-102%)'}], {...out, delay: 90}));
-  } finally {
-    wipeA.getAnimations().concat(wipeB.getAnimations()).forEach(a => a.cancel());
-    wipeBox.style.display = 'none';
-    wiping = false;
-  }
-}
 addEventListener('hashchange', route);
+
+/* numbers shown on the site, always counted from the data */
+function siteStats() {
+  const phrases = new Set(); let maps = 0, quizzes = 0;
+  Object.values(D.games).forEach(g => { g.groups.forEach(x => x.items.forEach(i => phrases.add(i[0]))); (g.fixes || []).forEach(f => phrases.add(f[1])); (g.sayit || []).forEach(w => phrases.add(w[0])); maps += (g.maps || []).length; quizzes += g.quiz.length; });
+  D.chat.forEach(i => phrases.add(i[0])); D.survival.forEach(i => phrases.add(i[0])); D.hero.forEach(h => phrases.add(h[0]));
+  return {games: Object.keys(D.games).length, maps, phrases: phrases.size, phrasesLabel: Math.floor(phrases.size / 10) * 10 + '+', quizzes};
+}
+const MENU = [['cs2','CS2','Places and money','Места и деньги'],['valorant','Valorant','Used abilities','Потраченные умения'],['apex','Apex','Degrees and height','Градусы и высота'],['overwatch','Overwatch','Tracking ultimates','Трекинг ульт'],['rivals','Marvel Rivals','Tracking ultimates','Трекинг ульт'],['basics','Basics','The call formula','Формула колла']];
+
+/* briefing: a folded paper map opens while you scroll, all of it driven by one progress value */
+const MARKS = [['A main', 54.4, 20.8], ['Mid', 50.6, 50], ['B apps', 16.9, 43.3], ['Heaven', 78.1, 10.8]];
+const CAPS = [['In ranked you have one second', 'В ранкеде у вас одна секунда'], ['Name the place', 'Назовите место'], ['Say the number', 'Назовите число']];
+const ARENA = `<defs>
+  <g id="arLines" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round">
+    <path d="M60 210h150v30h110v-10h60v-60h-20V80h150v20h20V100h190v150H610v20h0v50h130v130H610V310H490v60H435v100h55v90H340v-90h55V370h-75v-20h-40v50H280v90H90V330h60V310H60z"/>
+    <path d="M560 40h130v50H560zM530 100v-10h30M320 230h170v40M210 330h70"/>
+  </g>
+</defs>`;
+const panel = (x, y) => `<div class="pf"><svg viewBox="${x} ${y} 400 300" preserveAspectRatio="none" aria-hidden="true"><use href="#arPaper"/></svg><i class="shd"></i></div><div class="pb"><i class="shd"></i></div>`;
+function briefingHtml() {
+  const grid = [...Array(15)].map((_, i) => `<path d="M${i * 60 + 10} 0V600"/>`).join('') + [...Array(11)].map((_, i) => `<path d="M0 ${i * 60}H800"/>`).join('');
+  return `<section class="brief" id="brief" aria-label="Tactical briefing map">
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">${ARENA}<defs><g id="arPaper">
+      <rect width="800" height="600" fill="#EDE4D3"/><g stroke="#B9AD9A" stroke-width="1">${grid}</g>
+      <rect x="530" y="100" width="190" height="150" fill="#E3B9A6"/><rect x="90" y="330" width="190" height="160" fill="#E3B9A6"/>
+      <g style="color:#2B2528"><use href="#arLines"/></g>
+      <g fill="#6E1423" font-family="Anton,Impact,sans-serif"><text x="610" y="195" font-size="66">A</text><text x="165" y="430" font-size="66">B</text></g>
+      <path d="M415 540V390M415 390L300 345" fill="none" stroke="#C4283A" stroke-width="4" stroke-dasharray="12 9"/><path d="M415 390l-9 16h18z" fill="#C4283A"/>
+      <g fill="#4A4246" font-family="ui-monospace,Consolas,monospace" font-size="15"><text x="24" y="572">Training arena, not a real map</text><text x="24" y="34">Field sheet 07</text></g>
+    </g></defs></svg>
+    <div class="bstage" data-overflow>
+      <div class="bcap">${CAPS.map((c, i) => `<p class="cp" data-c="${i}">${c[0]}<span>${c[1]}</span></p>`).join('')}<button class="plain bbtn" id="brBuild">Build a call <span>Собрать колл</span></button></div>
+      <div class="bwrap"><div class="bmap" id="bmap">
+        <div class="pn bl">${panel(0, 300)}</div>
+        <div class="pn br wing" id="wingB">${panel(400, 300)}</div>
+        <div class="flap" id="flap"><div class="pn tl">${panel(0, 0)}</div><div class="pn tr wing" id="wingT">${panel(400, 0)}</div></div>
+        <div class="glarebox"><i id="glare"></i></div>
+        <div class="radar" id="radar"><i class="sweep" id="sweep"></i><svg viewBox="0 0 800 600" preserveAspectRatio="none" aria-hidden="true"><g stroke="#7DF5A8" stroke-opacity=".3" stroke-width="1">${grid}</g><g stroke="#7DF5A8" stroke-opacity=".45" fill="none"><circle cx="400" cy="300" r="120"/><circle cx="400" cy="300" r="240"/><circle cx="400" cy="300" r="360"/></g><g style="color:#7DF5A8"><use href="#arLines"/></g></svg></div>
+        ${MARKS.map((m, i) => `<button class="mk" data-m="${i}" data-say="${m[0]}" style="left:${m[1]}%;top:${m[2]}%" aria-label="Hear: ${m[0]}">${m[0]}</button>`).join('')}
+      </div></div>
+    </div>
+  </section>`;
+}
+let brief = null, briefLast = -1;
+function initBriefing() {
+  brief = document.getElementById('brief'); briefLast = -1;
+  const el = id => document.getElementById(id);
+  Object.assign(brief, {m: el('bmap'), flap: el('flap'), wb: el('wingB'), wt: el('wingT'), glare: el('glare'), radar: el('radar'), sweep: el('sweep'), btn: el('brBuild'),
+    caps: [...brief.querySelectorAll('.cp')], marks: [...brief.querySelectorAll('.mk')], shFlap: [...el('flap').querySelectorAll('.shd')], shWing: [...brief.querySelectorAll('.wing .shd')]});
+  brief.btn.onclick = () => scrollTo2(document.getElementById('bld'));
+}
+const seg = (p, a, b) => Math.min(1, Math.max(0, (p - a) / (b - a)));
+const easeIO = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+function drawBriefing() {
+  if (!brief || !brief.isConnected) return;
+  const r = brief.getBoundingClientRect(), range = r.height - innerHeight;
+  const p = !cfg.anim ? 1 : range > 0 ? Math.min(1, Math.max(0, -r.top / range)) : 1;
+  const small = innerWidth <= 860, key = p.toFixed(4) + small + cfg.anim;
+  brief.sweep.classList.toggle('live', cfg.anim && p > .5 && r.bottom > 0 && r.top < innerHeight);
+  if (key === briefLast) return; briefLast = key;
+  const fl = easeIO(seg(p, .02, small ? .42 : .24)), wi = small ? 1 : easeIO(seg(p, .22, .46));
+  brief.flap.style.transform = `rotateX(${-180 * (1 - fl)}deg)`;
+  brief.wb.style.transform = brief.wt.style.transform = `rotateY(${-180 * (1 - wi)}deg)`;
+  brief.m.style.transform = `translate(${25 * (1 - wi) * (small ? 0 : 1)}%,${-25 * (1 - fl)}%) rotateX(${16 * (1 - fl)}deg) rotateZ(${-3 * (1 - wi)}deg) scale(${.92 + .08 * fl})`;
+  const fs = Math.sin(Math.PI * fl) * .5, ws = Math.sin(Math.PI * wi) * .5;
+  brief.shFlap.forEach(e => { e.style.opacity = fs; }); brief.shWing.forEach(e => { e.style.opacity = Math.max(ws, e.closest('.flap') ? fs : 0); });
+  const g = seg(p, .46, .58);
+  brief.glare.style.transform = `translateX(${-130 + 330 * g}%) skewX(-16deg)`; brief.glare.style.opacity = g > 0 && g < 1 ? 1 : 0;
+  brief.radar.style.opacity = seg(p, .54, .64);
+  brief.marks.forEach((m, i) => m.classList.toggle('on', p >= .66 + i * .06));
+  const c = p < .36 ? 0 : p < .68 ? 1 : 2;
+  brief.caps.forEach((e, i) => e.classList.toggle('on', !cfg.anim || i === c));
+  brief.btn.classList.toggle('on', p >= .9);
+}
 
 /* home */
 function home() {
@@ -121,33 +236,43 @@ function home() {
   const line = 'There is one enemy on the balcony and he has very little health.';
   const ticker = D.hero.concat(D.games.cs2.groups[1].items.slice(0, 3).map(i => [i[0], '', i[1]]), D.games.apex.groups[1].items.slice(0, 2).map(i => [i[0], '', i[1]]));
   const tick = ticker.map(h => `<span><b>${esc(h[0])}</b><em>${esc(h[2])}</em></span>`).join('');
+  const st = siteStats();
   app.innerHTML = `
-  <section class="board" id="board"><div class="htitle"><h1 aria-label="Speak ranked">${letters('Speak')}<br>${letters('ranked')}</h1><p class="sub">Говори как в ранкеде: короткие фразы на английском</p></div>
-    <p class="hint"><span class="mouse">Drag the stickers around. </span>Tap one to hear it.<span class="ru"><span class="mouse">Двигай наклейки мышкой. </span>Нажми, чтобы услышать и увидеть перевод.</span></p></section>
+  <section class="menu">
+    <div class="mhead"><h1 aria-label="Speak ranked">${letters('Speak ranked')}</h1><p class="what">Short English callouts for Russian-speaking players<span class="ru">Короткие английские коллауты для русскоязычных игроков</span></p></div>
+    <nav class="mlist" aria-label="Main menu">
+      ${MENU.map(m => `<a class="mi" data-r style="--c:${ACCENT[m[0]]}" href="#/${m[0]}"><b>${m[1]}</b><span>${m[2]}<em>${m[3]}</em></span></a>`).join('')}
+      <button class="mi sm" data-r style="--c:var(--amber)" id="toBuild"><b>Build a call</b><span>Four parts, one second<em>Четыре части, одна секунда</em></span></button>
+      <a class="mi sm" data-r style="--c:var(--phosphor)" href="#/about"><b>Patch notes</b><span>About this project<em>О проекте</em></span></a>
+    </nav>
+    <div class="scene" id="board"><p class="hint"><span class="mouse">Drag the stickers around. </span>Tap one to hear it.<span class="ru"><span class="mouse">Двигайте наклейки мышкой. </span>Нажмите, чтобы услышать и увидеть перевод.</span></p></div>
+    <aside class="pcard" aria-label="Site statistics"><p class="pname">Player card<span>Карточка игрока</span></p><dl>
+      <div><dt>games<small>игр</small></dt><dd>${st.games}</dd></div><div><dt>maps<small>карт</small></dt><dd>${st.maps}</dd></div><div><dt>voiced phrases<small>фраз с озвучкой</small></dt><dd>${st.phrasesLabel}</dd></div><div><dt>quiz questions<small>вопросов в квизах</small></dt><dd>${st.quizzes}</dd></div></dl></aside>
+    <a class="ver" href="#/about">v2.0 · patch notes</a>
+  </section>
+  ${briefingHtml()}
   <div class="mq" aria-hidden="true"><div>${tick}${tick}</div></div>
-  <section class="band" id="slowS"><p class="slowcap" data-r>You have about one second before the moment is gone. School English needs more than that.<span class="ru">У тебя есть примерно секунда, потом момент упущен. Школьному английскому нужно больше.</span></p>
+  <section class="band" id="slowS"><p class="slowcap" data-r>You have about one second before the moment is gone. School English needs more than that.<span class="ru">У вас есть примерно секунда, потом момент упущен. Школьному английскому нужно больше.</span></p>
     <p class="slow" id="slow">${line.split(' ').map(w => `<span>${w}</span>`).join(' ')}</p>
     <p class="slowru">«На балконе один враг, и у него очень мало здоровья». Так правильно, но слишком долго.</p>
     <div class="fast" id="fast">${sticker('Last palace, low')}<p>Same information. Your team hears it in time.<span class="ru">«Последний на паласе, мало ХП». Смысл тот же, а команда успевает услышать.</span></p></div></section>
-  <section class="band" style="padding-top:0"><div class="panel" id="bld" data-r></div></section>
-  <section class="list"><h2 data-r>Pick your game. Each one speaks differently.<span class="ru">Выбери игру. В каждой говорят по-своему.</span></h2>
-    ${GAMES.map(k => `<a class="gm" data-r style="--h:${ACCENT[k]}" href="#/${k}"><b>${D.games[k].name}</b><div>${D.games[k].tagline}<span>${D.tagRu[k]}</span></div></a>`).join('')}
-    <a class="gm" data-r style="--h:${ACCENT.basics}" href="#/basics"><b>Basics</b><div>The call formula, chat words and what to say when you are lost.<span>Основы: формула колла, слова из чата и что сказать, если растерялся.</span></div></a></section>`;
+  <section class="band" style="padding-top:0"><div class="panel" id="bld" data-r></div></section>`;
   heroStickers(); builder('cs2', document.getElementById('bld'));
+  document.getElementById('toBuild').onclick = () => scrollTo2(document.getElementById('bld'));
+  initBriefing();
   const words = [...document.querySelectorAll('#slow span')];
   new IntersectionObserver((en, o) => { if (!en[0].isIntersecting) return; o.disconnect();
     words.forEach((w, i) => setTimeout(() => w.classList.add('gone'), 550 + i * 150));
     setTimeout(() => document.getElementById('fast')?.classList.add('on'), 550 + words.length * 150 + 200);
   }, {threshold: .5}).observe(document.getElementById('slow'));
 }
-const SPOTS = [[.40,.02,-5,26],[.70,.05,4,-34],[.47,.20,3,18],[.80,.24,-6,-22],[.27,.28,-3,40],[.64,.34,7,30],[.03,.05,6,-44],[.03,.22,-7,24],[.86,.44,-4,-16]];
-const FILLS = [['linear-gradient(115deg,#4A36E8,#FF5C9E)','#fff'],['#F4F3FF','#0D0E2B'],['linear-gradient(115deg,#FF5C9E,#FF9CC8)','#0D0E2B'],['#F4F3FF','#0D0E2B'],['linear-gradient(115deg,#4A36E8,#8E7CFF)','#fff'],['linear-gradient(115deg,#A23FD8,#FF5C9E)','#fff'],['#F4F3FF','#0D0E2B'],['linear-gradient(115deg,#6757F0,#B79BFF)','#fff'],['linear-gradient(115deg,#FF5C9E,#FFC4DC)','#0D0E2B']];
+const SPOTS = [[.40,.0,-3,26],[.74,.03,3,-34],[.08,.54,2,18],[.67,.27,-4,-22],[.36,.26,-2,40],[.54,.56,5,30],[.01,.02,4,-44],[.02,.28,-4,24],[.76,.55,-3,-16]];
 function heroStickers() {
   const b = document.getElementById('board'); let z = 10;
   D.hero.forEach(([t, g, ru], i) => {
     const [x, y, r, depth] = SPOTS[i], d = document.createElement('div');
     d.className = 'ht'; d.tabIndex = 0; d.dataset.depth = depth; d.setAttribute('role', 'button'); d.setAttribute('aria-label', `${t}, ${g}. Hear it and see the translation`);
-    d.style.cssText = `left:${x*100}%;top:${y*100}%;--r:${r}deg;--f:${FILLS[i][0]};--t:${FILLS[i][1]};--bob:${6 + (i % 4) * 1.3}s`;
+    d.style.cssText = `left:${x*100}%;top:${y*100}%;--r:${r}deg;--bob:${6 + (i % 4) * 1.3}s`;
     d.innerHTML = `<span class="flo" style="animation-delay:-${i * .9}s"><span class="in"><span class="fc">${esc(t)}<small>${g}</small></span><span class="fc bk">${esc(ru)}</span></span></span>`;
     b.append(d);
     setTimeout(() => d.classList.add('on'), 250 + i * 130);
@@ -165,7 +290,7 @@ function heroStickers() {
 
 /* call builder */
 function builder(start, host) {
-  host.innerHTML = `<div class="bhead"><div><h2>Build a call</h2><p>Four short pieces in the same order, every time. Pick one from each column and listen.<span class="ru">Собери колл: четыре коротких части всегда в одном порядке. Выбери по одной из каждой колонки и послушай.</span></p></div><div class="seg" id="seg" role="group" aria-label="Game">${Object.keys(D.builder).map(k => `<button data-g="${k}" aria-pressed="false">${D.builder[k].name}</button>`).join('')}</div></div><div class="cols" id="cols"></div><div class="out" aria-live="polite"><div><b id="callT"></b><p id="callR"></p></div><button class="st" id="callP"><i><b></b><b></b><b></b></i>Hear this call</button></div>`;
+  host.innerHTML = `<div class="bhead"><div><h2>Build a call</h2><p>Four short pieces in the same order, every time. Pick one from each column and listen.<span class="ru">Соберите колл: четыре коротких части всегда в одном порядке. Выберите по одной из каждой колонки и послушайте.</span></p></div><div class="seg" id="seg" role="group" aria-label="Game">${Object.keys(D.builder).map(k => `<button data-g="${k}" aria-pressed="false">${D.builder[k].name}</button>`).join('')}</div></div><div class="cols" id="cols"></div><div class="out" aria-live="polite"><div><b id="callT"></b><p id="callR"></p></div><button class="st" id="callP"><i><b></b><b></b><b></b></i>Hear this call</button></div>`;
   const seg = host.querySelector('#seg'), cols = host.querySelector('#cols'); let g = start, sel = [];
   const update = () => {
     const c = D.builder[g].cols.map((col, i) => col[1][sel[i]]);
@@ -193,13 +318,13 @@ function game(k) {
   add('phrases', g.groups[0].t, rows(g.groups[0].items));
   g.groups.slice(1).forEach((x, i) => add('p' + i, x.t, rows(x.items)));
   if (g.compass) add('compass', 'Compass drill', `<div class="panel cmp" id="cmp" data-r></div>`);
-  if (g.maps) add('maps', 'Maps', `<div class="maps">${g.maps.map((m, i) => `<button class="mp" data-r data-map="${i}" aria-label="Open ${m} map"><img loading="lazy" src="maps/${m}.${g.mapExt}" alt="${m} map with English position names"><b>${m === 'dust2' ? 'Dust 2' : m}</b></button>`).join('')}</div><p class="src">Map images: <a href="${g.mapUrl}" rel="noopener">${g.mapSource}</a>. Learn five places first: both sites, mid and two main entrances.<br>Для начала выучи пять мест: оба плента, мид и два главных входа.</p>`);
-  if (g.radar) add('radar', 'Radar with English names?', `<div class="panel note" data-r><p>Don't swap the game files.</p><p>In CS:GO you could replace the radar images. CS2 has no official support for that, and VAC checks game files on Valve servers. I found no safe guide, so it isn't worth risking your account.<span class="ru">Не подменяй файлы игры. В CS:GO картинки радара можно было заменить, а в CS2 официальной поддержки нет, и VAC проверяет файлы. Безопасной инструкции я не нашёл, так что рисковать аккаунтом не стоит.</span></p><p><strong>What works without risk</strong><span class="ru">Что работает без риска</span></p><ul><li>Switch the game to English: Steam, CS2, Properties, General, Language.<span>Поставь английский: Steam, CS2, Свойства, Общие, Язык.</span></li><li>Keep a map from this page on your phone or second screen.<span>Держи карту с этой страницы на телефоне или втором экране.</span></li><li>Walk the map offline with bots and say the places out loud.<span>Походи по карте с ботами и называй места вслух.</span></li><li>Search the Steam Workshop for "callouts" practice maps.<span>Поищи в Мастерской Steam тренировочные карты по слову callouts.</span></li><li>Turn off radar rotation in the settings.<span>Отключи вращение радара в настройках.</span></li></ul></div>`);
+  if (g.maps) add('maps', 'Maps', `<div class="maps">${g.maps.map((m, i) => `<button class="mp" data-r data-map="${i}" aria-label="Open ${m} map"><img loading="lazy" src="maps/${m}.${g.mapExt}" alt="${m} map with English position names"><b>${m === 'dust2' ? 'Dust 2' : m}</b></button>`).join('')}</div><p class="src">Map images: <a href="${g.mapUrl}" rel="noopener">${g.mapSource}</a>. Learn five places first: both sites, mid and two main entrances.<br>Для начала выучите пять мест: оба плента, мид и два главных входа.</p>`);
+  if (g.radar) add('radar', 'Radar with English names?', `<div class="panel note" data-r><p>Don't swap the game files.</p><p>In CS:GO you could replace the radar images. CS2 has no official support for that, and VAC checks game files on Valve servers. I found no safe guide, so it isn't worth risking your account.<span class="ru">Не подменяйте файлы игры. В CS:GO картинки радара можно было заменить, а в CS2 официальной поддержки нет, и VAC проверяет файлы. Безопасной инструкции я не нашёл, так что рисковать аккаунтом не стоит.</span></p><p><strong>What works without risk</strong><span class="ru">Что работает без риска</span></p><ul><li>Switch the game to English: Steam, CS2, Properties, General, Language.<span>Поставьте английский: Steam, CS2, Свойства, Общие, Язык.</span></li><li>Keep a map from this page on your phone or second screen.<span>Держите карту с этой страницы на телефоне или втором экране.</span></li><li>Walk the map offline with bots and say the places out loud.<span>Походите по карте с ботами и называйте места вслух.</span></li><li>Search the Steam Workshop for "callouts" practice maps.<span>Поищите в Мастерской Steam тренировочные карты по слову callouts.</span></li><li>Turn off radar rotation in the settings.<span>Отключите вращение радара в настройках.</span></li></ul></div>`);
   if (g.fixes) add('fix', 'Say it right', `<div class="rows">${g.fixes.map(f => `<div class="row fix" data-r><s>${esc(f[0])}<small>так не говорят</small></s>${arrow}${sticker(f[1])}<div><span class="tr">${esc(f[2])}</span>${D.how[f[1]] ? `<span class="how">${esc(D.how[f[1]])}</span>` : ''}</div></div>`).join('')}</div>`);
   if (g.sayit) add('say', 'How it sounds', `<div class="says">${g.sayit.map(w => `<div data-r>${sticker(w[0])}<span>${esc(w[1])}</span></div>`).join('')}</div>`);
   add('quiz', 'Quick quiz', `<div class="panel qz" id="qz" data-r></div>`);
   const jumps = [['phrases', 'Phrases', 'Фразы']].concat(g.compass ? [['compass', 'Compass drill', 'Компас']] : [], g.maps ? [['maps', 'Maps', 'Карты']] : [], g.fixes ? [['fix', 'Say it right', 'Ошибки']] : [], [['say', 'How it sounds', 'Произношение'], ['quiz', 'Quiz', 'Квиз']]);
-  app.innerHTML = `<section class="ghead"><div class="cluster">${g.groups.concat(g.groups).slice(0, 3).map((x, i) => sticker(x.items[i === 2 ? 1 : 0][0], `style="--tilt:${[-6, 5, -3][i]}deg;--bob:${6 + i * 1.4}s;animation-delay:-${i}s"`)).join('')}</div><h1 class="${g.name.length > 9 ? 'long' : g.name.length > 4 ? 'mid' : ''}" aria-label="${g.name}">${letters(g.name)}</h1><p class="lead" data-r>${g.tagline}</p><p class="leadru" data-r>${D.tagRu[k]}</p><div class="jump" data-r>${jumps.map(j => `<button data-to="${j[0]}">${j[1]} <span style="opacity:.7">${j[2]}</span></button>`).join('')}</div></section>` +
+  app.innerHTML = `<section class="ghead"><div class="cluster">${g.groups.concat(g.groups).slice(0, 3).map((x, i) => sticker(x.items[i === 2 ? 1 : 0][0], `style="--tilt:${[-6, 5, -3][i]}deg;--bob:${6 + i * 1.4}s;animation-delay:-${i}s"`)).join('')}</div><h1 class="${g.name.length > 9 ? 'long' : g.name.length > 4 ? 'mid' : ''}" aria-label="${g.name}">${letters(g.name)}</h1><p class="lead" data-r>${g.tagline}</p><p class="leadru" data-r>${D.tagRu[k]}</p><div class="jump" data-r>${jumps.map(j => `<button data-to="${j[0]}">${j[1]} <span>${j[2]}</span></button>`).join('')}</div></section>` +
     secs.map(s => `<section class="sec" id="s-${s.id}"><div class="sech" data-r><h2>${s.title}</h2><span>${ruTitle(s.title)}</span></div><div>${s.html}</div></section>`).join('');
   app.querySelector('.jump').addEventListener('click', e => { const b = e.target.closest('button'); if (b) scrollTo2(document.getElementById('s-' + b.dataset.to)); });
   app.querySelectorAll('.mp').forEach(b => b.onclick = () => openMap(g, +b.dataset.map));
@@ -223,7 +348,7 @@ box.addEventListener('keydown', e => { if (e.key === 'ArrowLeft') showMap(mi - 1
 function quiz(k, g, host) {
   let i = 0, score = 0;
   const q = () => {
-    if (i === g.quiz.length) { const all = score === g.quiz.length; host.innerHTML = `<p class="score">${score} of ${g.quiz.length}</p><p class="why">${all ? 'Clean round. Now say one of these out loud in your next match.' : 'Read the phrases above again and try one more round.'}</p><p class="whyr">${all ? 'Чистый раунд. Теперь скажи одну из этих фраз в следующей катке.' : 'Перечитай фразы выше и попробуй ещё раз.'}</p><button class="plain" id="again">Play again / Ещё раз</button>`; host.querySelector('#again').onclick = () => { i = 0; score = 0; q(); }; if (all) { const r = host.getBoundingClientRect(); sparks(r.left + r.width / 3, r.top + 80, 44, 240); } return; }
+    if (i === g.quiz.length) { const all = score === g.quiz.length; host.innerHTML = `<p class="score">${score} of ${g.quiz.length}</p><p class="why">${all ? 'Clean round. Now say one of these out loud in your next match.' : 'Read the phrases above again and try one more round.'}</p><p class="whyr">${all ? 'Чистый раунд. Теперь скажите одну из этих фраз в следующей катке.' : 'Перечитайте фразы выше и попробуйте ещё раз.'}</p><button class="plain" id="again">Play again / Ещё раз</button>`; host.querySelector('#again').onclick = () => { i = 0; score = 0; q(); }; if (all) { const r = host.getBoundingClientRect(); sparks(r.left + r.width / 3, r.top + 80, 44, 240); } return; }
     const c = g.quiz[i], r = D.quizRu[k][i];
     host.innerHTML = `<p class="qn">Question ${i + 1} of ${g.quiz.length} / Вопрос ${i + 1} из ${g.quiz.length}</p><p class="qq">${esc(c.q)}</p><p class="qr">${esc(r.q)}</p><div class="qo">${c.o.map((o, n) => `<div class="qw"><button class="st" data-n="${n}" style="--tilt:${[-.8,.6,-.4][n % 3]}deg">${esc(o)}</button><span class="qt">${esc(r.o[n])}</span></div>`).join('')}</div><div id="after"></div>`;
     host.querySelector('.qo').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled) return;
@@ -239,17 +364,16 @@ function quiz(k, g, host) {
 
 /* Apex compass drill */
 function compass(host) {
-  const ticks = [...Array(36)].map((_, i) => { const a = i * 10 * Math.PI / 180, big = i % 9 === 0, r1 = big ? 150 : 166, r2 = 182; return `<line x1="${200 + r1 * Math.sin(a)}" y1="${200 - r1 * Math.cos(a)}" x2="${200 + r2 * Math.sin(a)}" y2="${200 - r2 * Math.cos(a)}" stroke="#fff" stroke-opacity="${big ? 1 : .55}" stroke-width="${big ? 6 : 3}" stroke-linecap="round"/>`; }).join('');
+  const ticks = [...Array(36)].map((_, i) => { const a = i * 10 * Math.PI / 180, big = i % 9 === 0, r1 = big ? 150 : 166, r2 = 182; return `<line x1="${200 + r1 * Math.sin(a)}" y1="${200 - r1 * Math.cos(a)}" x2="${200 + r2 * Math.sin(a)}" y2="${200 - r2 * Math.cos(a)}" stroke="#EFE9E1" stroke-opacity="${big ? 1 : .55}" stroke-width="${big ? 6 : 3}" stroke-linecap="round"/>`; }).join('');
   host.innerHTML = `<svg viewBox="0 0 400 400" id="dial" role="img" aria-label="Compass. Click the ring where the bearing should be.">
-    <defs><linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4A36E8"/><stop offset="1" stop-color="#3DDAC3"/></linearGradient><linearGradient id="face" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#17154A"/><stop offset="1" stop-color="#0D2A3E"/></linearGradient></defs>
-    <circle cx="200" cy="200" r="194" fill="url(#face)" stroke="url(#rim)" stroke-width="8"/>${ticks}
+        <circle cx="200" cy="200" r="194" fill="#17161A" stroke="#47CDB8" stroke-width="5"/>${ticks}
     <text class="tk" x="200" y="84">N 0</text><text class="tk" x="316" y="200">E 90</text><text class="tk" x="200" y="316">S 180</text><text class="tk" x="84" y="200">W 270</text>
-    <g class="needle" id="ans" style="opacity:0"><line x1="200" y1="200" x2="200" y2="30" stroke="#fff" stroke-width="5" stroke-dasharray="3 11" stroke-linecap="round"/></g>
-    <g class="needle" id="ndl" style="opacity:0"><line x1="200" y1="200" x2="200" y2="30" stroke="#FF5C9E" stroke-width="7" stroke-linecap="round"/><circle cx="200" cy="30" r="12" fill="#FF5C9E"/></g>
-    <circle cx="200" cy="200" r="10" fill="#fff"/></svg>
+    <g class="needle" id="ans" style="opacity:0"><line x1="200" y1="200" x2="200" y2="30" stroke="#7DF5A8" stroke-width="5" stroke-dasharray="3 11" stroke-linecap="round"/></g>
+    <g class="needle" id="ndl" style="opacity:0"><line x1="200" y1="200" x2="200" y2="30" stroke="#FFB547" stroke-width="7" stroke-linecap="round"/><circle cx="200" cy="30" r="12" fill="#FFB547"/></g>
+    <circle cx="200" cy="200" r="10" fill="#EFE9E1"/></svg>
     <div><p class="target" id="tgt"></p><p class="res" id="res" aria-live="polite"></p><button class="plain" id="nx">New enemy / Новый враг</button></div>`;
   const dial = host.querySelector('#dial'), ndl = host.querySelector('#ndl'), ans = host.querySelector('#ans'), tgt = host.querySelector('#tgt'), res = host.querySelector('#res'); let bearing, done;
-  const fresh = () => { bearing = Math.floor(Math.random() * 24) * 15; done = false; tgt.textContent = `Enemy, ${bearing}`; res.innerHTML = 'Click the ring where this enemy is. North is 0, and numbers grow clockwise.<span>Нажми на кольцо там, где стоит враг. Север равен 0, числа растут по часовой стрелке.</span>'; ndl.style.opacity = 0; ans.style.opacity = 0; };
+  const fresh = () => { bearing = Math.floor(Math.random() * 24) * 15; done = false; tgt.textContent = `Enemy, ${bearing}`; res.innerHTML = 'Click the ring where this enemy is. North is 0, and numbers grow clockwise.<span>Нажмите на кольцо там, где стоит враг. Север равен 0, числа растут по часовой стрелке.</span>'; ndl.style.opacity = 0; ans.style.opacity = 0; };
   dial.addEventListener('click', e => { if (done) return; const r = dial.getBoundingClientRect(), x = e.clientX - r.left - r.width / 2, y = e.clientY - r.top - r.height / 2;
     const a = (Math.atan2(x, -y) * 180 / Math.PI + 360) % 360, off = Math.round(Math.min(Math.abs(a - bearing), 360 - Math.abs(a - bearing)));
     done = true; ndl.style.opacity = 1; ndl.style.transform = `rotate(${a}deg)`; ans.style.opacity = 1; ans.style.transform = `rotate(${bearing}deg)`;
@@ -259,14 +383,32 @@ function compass(host) {
   host.querySelector('#nx').onclick = fresh; fresh();
 }
 
+/* patch notes: what the project is and how it was made */
+function about() {
+  document.title = 'Patch notes | Comms Diff';
+  const st = siteStats();
+  const block = (en, ru, body) => `<section class="sec"><div class="sech" data-r><h2>${en}</h2><span>${ru}</span></div><div class="pnote" data-r>${body}</div></section>`;
+  const para = (en, ru) => `<p>${en}<span class="ru">${ru}</span></p>`;
+  const item = (en, ru) => `<li>${en}<span class="ru">${ru}</span></li>`;
+  app.innerHTML = `<section class="ghead"><h1 class="mid" aria-label="Patch notes">${letters('Patch notes')}</h1><p class="lead" data-r>What this project is, who it is for and how it was made.</p><p class="leadru" data-r>Что это за проект, для кого он и как сделан.</p></section>` +
+  block('Mission', 'Цель', para('Help Russian-speaking players talk to their team in English, quickly and confidently.', 'Помочь русскоязычным игрокам говорить с командой на английском быстро и уверенно.') +
+    para('School English is too slow for ranked. "There is one enemy on the balcony and he has very little health" is correct, but the round is over before you finish. "Last palace, low" says the same thing in one second.', 'Школьный английский слишком медленный для ранкеда. Длинная фраза правильная, но раунд закончится раньше, чем вы её договорите. «Last palace, low» говорит то же самое за секунду.')) +
+  block('Who it\'s for', 'Для кого', para('Russian-speaking players who know almost no English or are just starting to learn it, and who end up in international lobbies.', 'Русскоязычные игроки, которые почти не знают английского или только начинают его учить и попадают в международные лобби.')) +
+  block('How the phrases were chosen', 'Как выбирались фразы', para('They were collected from the way players really talk in the community, with the help of AI, and then checked against my own experience of playing these games. That is why there is no Dota or LoL here: I have not played them.', 'Фразы собраны из того, как реально говорят игроки в сообществе, с помощью ИИ, и проверены моим личным игровым опытом. Поэтому здесь нет Dota и LoL: в них я не играл.')) +
+  block('The rule', 'Правило', para('Every game has its own language, so don\'t mix them. Nobody says "cracked" in CS2.', 'У каждой игры свой язык, поэтому не смешивайте их. В CS2 никто не говорит «cracked».')) +
+  block('What\'s inside', 'Что внутри', `<ul class="plist">${item(`${st.games} games`, 'игр')}${item(`${st.maps} maps`, 'карт')}${item(`${st.phrasesLabel} voiced phrases`, 'фраз с озвучкой')}${item(`${st.quizzes} quiz questions`, 'вопросов в квизах')}${item('A call builder', 'конструктор коллов')}${item('A compass drill for Apex', 'тренажёр компаса для Apex')}</ul>`) +
+  block('Credits', 'Титры', `<ul class="plist one">${item('Made by Danil Navoytsev', 'Автор: Данил Навойцев')}${item('Voices are generated by a neural speech model', 'Голоса созданы нейросетью')}${item('Maps: <a href="https://totalcsgo.com/callouts" rel="noopener">totalcsgo.com</a> and the <a href="https://blog.exitlag.com/valorant-callouts" rel="noopener">ExitLag Blog</a>', 'Карты: totalcsgo.com и ExitLag Blog')}${item('Game names belong to their owners', 'Названия игр принадлежат их владельцам')}</ul>`) +
+  block('Version history', 'История версий', `<dl class="vers"><div><dt>v2.0</dt><dd>New design, main menu, briefing map, settings and patch notes.<span class="ru">Новый дизайн, главное меню, брифинг-карта, настройки и patch notes.</span></dd></div><div><dt>v1.0</dt><dd>First version: phrases, maps, voice and quizzes.<span class="ru">Первая версия: фразы, карты, озвучка и квизы.</span></dd></div></dl>`);
+}
+
 /* basics */
 function basics() {
   document.title = 'Basics | Comms Diff';
-  const st = [['How many','Сколько','Say the number first, so your team knows the danger.','Сначала число, чтобы команда понимала опасность.','"Two" (двое)'],['Where','Где','Use the name of the place, or a bearing in Apex.','Название места, а в Apex градусы.','"B apps" (квартиры B)'],["What's happening",'Что происходит','Only what changes the decision.','Только то, что влияет на решение.','"One AWP" (один со снайперкой)'],['What we do','Что делаем','Finish with the plan, if there is one.','В конце план, если он есть.','"Fall back" (откатываемся)']];
+  const st = [['How many','Сколько','Say the number first, so your team knows the danger.','Сначала число, чтобы команда понимала опасность.','"Two" (двое)'],['Where','Где','Use the name of the place, or a bearing in Apex.','Название места, а в Apex градусы.','"B apps" (квартиры B)'],["What's happening",'Что происходит','Only what changes the decision.','Только то, что влияет на решение.','"One AWP" (один со снайперкой)'],['What we do','Что делаем','Finish with the plan, if there is one.','В конце план, если он есть.','"Fall back" (отходим)']];
   app.innerHTML = `<section class="ghead"><h1 class="mid" aria-label="Basics">${letters('Basics')}</h1><p class="lead" data-r>A good call takes one or two seconds. Articles and "he is going to" only slow you down.</p><p class="leadru" data-r>Основы. Хороший колл длится одну-две секунды. Артикли и длинные конструкции только мешают.</p></section>
-   <section class="sec"><div class="sech" data-r><h2>The formula</h2><span>Формула</span></div><div><ol class="steps">${st.map(s => `<li data-r><b>${s[0]}</b><small>${s[1]}</small><span>${s[2]}</span><span class="ru">${s[3]}</span><em>${s[4]}</em></li>`).join('')}</ol><p class="rule" data-r>Every game has its own slang, so don't carry it across. Saying something with a mistake still beats saying nothing.</p><p class="ruler" data-r>У каждой игры свой сленг, не переноси его между играми. Сказать с ошибкой всё равно лучше, чем промолчать.</p></div></section>
+   <section class="sec"><div class="sech" data-r><h2>The formula</h2><span>Формула</span></div><div><ol class="steps">${st.map(s => `<li data-r><b>${s[0]}</b><small>${s[1]}</small><span>${s[2]}</span><span class="ru">${s[3]}</span><em>${s[4]}</em></li>`).join('')}</ol><p class="rule" data-r>Every game has its own slang, so don't carry it across. Saying something with a mistake still beats saying nothing.</p><p class="ruler" data-r>У каждой игры свой сленг, не переносите его между играми. Сказать с ошибкой всё равно лучше, чем промолчать.</p></div></section>
    <section class="sec"><div class="sech" data-r><h2>Chat words</h2><span>Слова из чата</span></div>${rows(D.chat)}</section>
-   <section class="sec"><div class="sech" data-r><h2>When you are lost</h2><span>Если ты растерялся</span></div>${rows(D.survival)}</section>`;
+   <section class="sec"><div class="sech" data-r><h2>When you are lost</h2><span>Если вы растерялись</span></div>${rows(D.survival)}</section>`;
 }
 document.querySelector('.skip').onclick = e => { e.preventDefault(); app.focus(); };
 sizeSnow(); snow(); applyFx(); route(); requestAnimationFrame(frame);
