@@ -7,54 +7,77 @@ const ACCENT = {cs2:'#E8C15A',valorant:'#FF6B7E',apex:'#47CDB8',overwatch:'#F58F
 const MEANING = {One:'Один',Two:'Двое',Three:'Трое',Last:'Последний',Palace:'на паласе','B apps':'на квартирах B',Mid:'на миде',Long:'на лонге',Window:'в окне',Low:'мало ХП',Lit:'подбит','One AWP':'один со снайперкой','Smoke up':'смоук стоит',Rushing:'идут рашем','Fall back':'откатываемся',Push:'давим',Rotate:'перекидываемся',Hold:'держим позицию','A main':'на A мейне','B long':'на B лонге',Heaven:'на хевене',Garage:'в гараже','Hit 90':'попал на 90','No dash':'рывка нет','Op up':'есть Оператор','No util':'умений нет','Ult ready':'ульта готова','60':'60 градусов','150':'150 градусов','240':'240 градусов','330':'330 градусов',Cracked:'щит сломан','One shot':'на один выстрел',Knocked:'нокнут','High ground':'на высоте','Push now':'давим сейчас',Reset:'отходим и лечимся','Take high ground':'занимаем высоту'};
 const COL_RU = {'How many':'Сколько','Where':'Где',"What's happening":'Что происходит','What we do':'Что делаем'};
 
-/* The site animates even when Windows animation effects are off; the header button is the opt-out. */
+/* settings, kept in localStorage when it is available */
 const store = {get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
-let fxOn = store.get('fx') !== 'off';
-const fxBtn = document.getElementById('fx');
-function applyFx() { root.classList.toggle('calm', !fxOn); fxBtn.setAttribute('aria-pressed', fxOn); fxBtn.lastChild.textContent = fxOn ? 'Snow on' : 'Snow off'; }
-fxBtn.onclick = () => { fxOn = !fxOn; store.set('fx', fxOn ? 'on' : 'off'); applyFx(); };
+const systemCalm = matchMedia('(prefers-reduced-motion:reduce)').matches;
+let saved = {}; try { saved = JSON.parse(store.get('cd-settings')) || {}; } catch (e) {}
+const cfg = {snow: saved.snow === true, anim: typeof saved.anim === 'boolean' ? saved.anim : !systemCalm, vol: typeof saved.vol === 'number' ? saved.vol : .85};
+const saveCfg = () => store.set('cd-settings', JSON.stringify(cfg));
+const setBtn = document.getElementById('setBtn'), setPanel = document.getElementById('setPanel'), motionTip = document.getElementById('motionTip');
+function applyFx() {
+  root.classList.toggle('calm', !cfg.anim);
+  if (lenis) lenis.options.smoothWheel = cfg.anim;
+  document.getElementById('optSnow').checked = cfg.snow;
+  document.getElementById('optAnim').checked = cfg.anim;
+  document.getElementById('optVol').value = Math.round(cfg.vol * 100);
+  document.getElementById('volVal').textContent = Math.round(cfg.vol * 100) + '%';
+  if (cur) cur.volume = cfg.vol;
+  motionTip.hidden = cfg.anim || !systemCalm || saved.anim !== undefined;
+}
+function panelOpen(on, refocus = true) {
+  setPanel.hidden = !on; setBtn.setAttribute('aria-expanded', on);
+  if (on) document.getElementById('optSnow').focus(); else if (refocus) setBtn.focus();
+}
+setBtn.onclick = () => panelOpen(setPanel.hidden);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !setPanel.hidden) panelOpen(false); });
+document.addEventListener('pointerdown', e => { if (!setPanel.hidden && !setPanel.contains(e.target) && !setBtn.contains(e.target)) panelOpen(false, false); });
+document.getElementById('optSnow').onchange = e => { cfg.snow = e.target.checked; saveCfg(); applyFx(); };
+document.getElementById('optAnim').onchange = e => { cfg.anim = e.target.checked; saved.anim = cfg.anim; saveCfg(); applyFx(); };
+document.getElementById('optVol').oninput = e => { cfg.vol = e.target.value / 100; saveCfg(); applyFx(); };
+document.getElementById('tipOn').onclick = () => { cfg.anim = true; saved.anim = true; saveCfg(); applyFx(); };
+document.getElementById('tipOff').onclick = () => { saved.anim = false; cfg.anim = false; saveCfg(); applyFx(); };
 
 /* smooth scrolling and the progress bar */
-const lenis = window.Lenis ? new Lenis({duration: 1.15, smoothWheel: true, easing: t => 1 - Math.pow(1 - t, 3.2)}) : null;
+const lenis = window.Lenis ? new Lenis({duration: 1.15, smoothWheel: cfg.anim, easing: t => 1 - Math.pow(1 - t, 3.2)}) : null;
 const bar = document.getElementById('bar'), toTop = document.getElementById('toTop');
-toTop.onclick = () => { lenis && fxOn ? lenis.scrollTo(0, {duration: .75, force: true}) : scrollTo({top: 0, behavior: 'instant'}); };
+toTop.onclick = () => { lenis && cfg.anim ? lenis.scrollTo(0, {duration: .75, force: true}) : (lenis ? lenis.scrollTo(0, {immediate: true, force: true}) : scrollTo({top: 0, behavior: 'instant'})); };
 function frame(t) {
   if (lenis) lenis.raf(t);
   const h = document.documentElement.scrollHeight - innerHeight, y = scrollY;
   bar.style.transform = `scaleX(${h > 0 ? Math.min(1, y / h) : 0})`;
   toTop.classList.toggle('on', y > innerHeight * .6);
-  const ht = document.querySelector('.htitle'); if (ht && y < innerHeight * 1.2 && fxOn && innerWidth > 860) { ht.style.transform = `translateY(${-y * .1}px)`; ht.style.opacity = Math.max(0, 1 - y / (innerHeight * .75)); }
+  const ht = document.querySelector('.htitle'); if (ht && y < innerHeight * 1.2 && cfg.anim && innerWidth > 860) { ht.style.transform = `translateY(${-y * .1}px)`; ht.style.opacity = Math.max(0, 1 - y / (innerHeight * .75)); }
   parallax(); drawGlow();
   requestAnimationFrame(frame);
 }
-function scrollTo2(el) { lenis ? lenis.scrollTo(el, {offset: -14, duration: 1.5}) : el.scrollIntoView(); }
+function scrollTo2(el) { lenis ? lenis.scrollTo(el, cfg.anim ? {offset: -14, duration: 1.5} : {offset: -14, immediate: true, force: true}) : el.scrollIntoView(); }
 
 /* snow: three depths, drifts with the mouse */
 const cv = document.getElementById('snow'), cx = cv.getContext('2d'); let flakes = [], wind = 0, windTo = 0;
-const mk = any => { const z = Math.random(); return {x: Math.random() * innerWidth, y: any ? Math.random() * innerHeight : -8, z, r: .9 + z * 2.5, s: .25 + z * .95, p: Math.random() * 6.3, a: .3 + z * .55}; };
+const mk = any => { const z = Math.random(); return {x: Math.random() * innerWidth, y: any ? Math.random() * innerHeight : -8, z, r: .6 + z * 1.3, s: .2 + z * .6, p: Math.random() * 6.3, a: .22 + z * .38}; };
 function sizeSnow() { const r = Math.min(devicePixelRatio || 1, 1.5); cv.width = innerWidth * r; cv.height = innerHeight * r; cx.setTransform(r, 0, 0, r, 0, 0);
-  const n = Math.round(Math.min(150, innerWidth / 11)); flakes = [...Array(n)].map(() => mk(true)); }
+  const n = Math.round(Math.min(90, innerWidth / 16)); flakes = [...Array(n)].map(() => mk(true)); }
 function snow() {
   cx.clearRect(0, 0, innerWidth, innerHeight);
-  if (fxOn && !document.hidden) { wind += (windTo - wind) * .02; windTo *= .992;
-    for (const f of flakes) { f.p += .012; f.y += f.s; f.x += Math.sin(f.p) * .42 + wind * (.4 + f.z);
-      if (f.y > innerHeight + 8) Object.assign(f, mk(false)); if (f.x > innerWidth + 8) f.x = -8; if (f.x < -8) f.x = innerWidth + 8;
-      cx.beginPath(); cx.fillStyle = `rgba(255,255,255,${f.a})`; cx.arc(f.x, f.y, f.r, 0, 6.3); cx.fill(); } }
+  if (cfg.snow && !document.hidden) { wind += (windTo - wind) * .02; windTo *= .992;
+    for (const f of flakes) { if (cfg.anim) { f.p += .012; f.y += f.s; f.x += Math.sin(f.p) * .3 + wind * (.3 + f.z);
+      if (f.y > innerHeight + 8) Object.assign(f, mk(false)); if (f.x > innerWidth + 8) f.x = -8; if (f.x < -8) f.x = innerWidth + 8; }
+      cx.beginPath(); cx.fillStyle = `rgba(239,233,225,${f.a})`; cx.arc(f.x, f.y, f.r, 0, 6.3); cx.fill(); } }
   requestAnimationFrame(snow);
 }
 addEventListener('resize', sizeSnow);
 
 /* soft light under the cursor, sticker tilt, hero parallax */
 const glow = document.getElementById('glow'); let mx = innerWidth / 2, my = innerHeight / 2, gx = mx, gy = my, px = 0, py = 0, lastX = mx;
-addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; mx = e.clientX; my = e.clientY; windTo += (mx - lastX) * .0035; windTo = Math.max(-2.2, Math.min(2.2, windTo)); lastX = mx; glow.style.opacity = fxOn ? 1 : 0;
-  const st = e.target.closest && e.target.closest('.st'); if (st && !st.disabled && fxOn) { const r = st.getBoundingClientRect(); st.style.setProperty('--ry', ((e.clientX - r.left) / r.width - .5) * 16 + 'deg'); st.style.setProperty('--rx', -((e.clientY - r.top) / r.height - .5) * 16 + 'deg'); } }, {passive: true});
+addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; mx = e.clientX; my = e.clientY; windTo += (mx - lastX) * .0035; windTo = Math.max(-2.2, Math.min(2.2, windTo)); lastX = mx; glow.style.opacity = cfg.anim ? 1 : 0;
+  const st = e.target.closest && e.target.closest('.st'); if (st && !st.disabled && cfg.anim) { const r = st.getBoundingClientRect(); st.style.setProperty('--ry', ((e.clientX - r.left) / r.width - .5) * 16 + 'deg'); st.style.setProperty('--rx', -((e.clientY - r.top) / r.height - .5) * 16 + 'deg'); } }, {passive: true});
 document.addEventListener('pointerout', e => { const st = e.target.closest && e.target.closest('.st'); if (st) { st.style.setProperty('--rx', '0deg'); st.style.setProperty('--ry', '0deg'); } });
 function drawGlow() { gx += (mx - gx) * .07; gy += (my - gy) * .07; glow.style.transform = `translate3d(${gx}px,${gy}px,0)`; }
-function parallax() { px += ((mx / innerWidth - .5) - px) * .05; py += ((my / innerHeight - .5) - py) * .05; if (!fxOn || innerWidth < 860) return;
+function parallax() { px += ((mx / innerWidth - .5) - px) * .05; py += ((my / innerHeight - .5) - py) * .05; if (!cfg.anim || innerWidth < 860) return;
   document.querySelectorAll('.ht:not(.drag)').forEach(h => { const d = +h.dataset.depth; h.style.translate = `${px * d}px ${py * d}px`; }); }
 
 /* small sparkle when a sticker is pressed */
-function sparks(x, y, count = 12, spread = 80) { if (!fxOn) return;
+function sparks(x, y, count = 12, spread = 80) { if (!cfg.anim) return;
   for (let i = 0; i < count; i++) { const s = document.createElement('i'); s.className = 'spark'; s.style.cssText = `left:${x}px;top:${y}px;background:${['#EFE9E1','#FFB547','#EFE9E1','#EA4656'][i % 4]}`; document.body.append(s);
     const a = Math.random() * 6.3, r = spread * (.5 + Math.random()); s.animate([{transform: 'translate(-50%,-50%) scale(1)', opacity: 1}, {transform: `translate(calc(-50% + ${Math.cos(a) * r}px),calc(-50% + ${Math.sin(a) * r + 24}px)) scale(.15)`, opacity: 0}], {duration: 800 + Math.random() * 520, easing: 'cubic-bezier(.16,1,.3,1)'}).onfinish = () => s.remove(); } }
 
@@ -64,9 +87,9 @@ function stop() { if (cur) { cur.onerror = cur.onended = null; cur.pause(); cur 
 function speakNext() {
   if (!queue.length) { cur = null; if (curBtn) curBtn.classList.remove('playing'); curBtn = null; return; }
   const t = queue.shift(), a = new Audio('audio/' + D.slug(t) + '.mp3?v=' + V);
-  cur = a;
+  cur = a; a.volume = cfg.vol;
   a.onended = speakNext;
-  const fail = () => { if (a !== cur) return; try { const u = new SpeechSynthesisUtterance(D.say[t] || t); u.lang = 'en-US'; u.onend = speakNext; speechSynthesis.speak(u); } catch (e) { speakNext(); } };
+  const fail = () => { if (a !== cur) return; try { const u = new SpeechSynthesisUtterance(D.say[t] || t); u.lang = 'en-US'; u.volume = cfg.vol; u.onend = speakNext; speechSynthesis.speak(u); } catch (e) { speakNext(); } };
   a.onerror = fail;
   a.play().catch(e => { if (e.name !== 'AbortError') fail(); });
 }
@@ -96,7 +119,7 @@ function draw() {
 const wipeBox = document.getElementById('wipe');
 const settled = a => Promise.race([a.finished.catch(() => {}), new Promise(r => setTimeout(r, 1400))]);
 async function route() {
-  if (!ready || !fxOn || wiping) { ready = true; draw(); return; }
+  if (!ready || !cfg.anim || wiping) { ready = true; draw(); return; }
   wiping = true;
   wipeBox.style.display = 'block';
   try {
