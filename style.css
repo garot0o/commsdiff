@@ -271,6 +271,8 @@ html.calm [data-r],html.calm .ltr{opacity:1;transform:none;filter:none}
   .board{height:auto;min-height:0;display:flex;flex-wrap:wrap;gap:16px 12px;padding:8px 2px 26px}
   .ht{position:relative;left:auto!important;top:auto!important}
   .ht .fc{font-size:23px;padding:10px 14px 9px}.mouse{display:none}
+  .ht .in{display:grid}.ht .fc,.ht .bk{grid-area:1/1}
+  .ht .bk{position:relative;inset:auto;width:0;min-width:100%;box-sizing:border-box;border-radius:19px;font-size:14px;line-height:1.25;padding:10px 12px;overflow-wrap:anywhere;hyphens:auto;text-wrap:balance}
   .htitle{position:static;width:100%;order:-2;margin:6px 0 14px}.board h1{font-size:28vw}
   .hint{position:static;max-width:none;text-align:left;order:-1;width:100%;margin-bottom:6px}
   .cols{grid-template-columns:repeat(2,minmax(0,1fr))}.cluster{display:none}
