@@ -46,7 +46,6 @@ function frame(t) {
   const h = document.documentElement.scrollHeight - innerHeight, y = scrollY;
   bar.style.transform = `scaleX(${h > 0 ? Math.min(1, y / h) : 0})`;
   toTop.classList.toggle('on', y > innerHeight * .6);
-  const ht = document.querySelector('.htitle'); if (ht && y < innerHeight * 1.2 && cfg.anim && innerWidth > 860) { ht.style.transform = `translateY(${-y * .1}px)`; ht.style.opacity = Math.max(0, 1 - y / (innerHeight * .75)); }
   parallax(); drawGlow();
   requestAnimationFrame(frame);
 }
@@ -101,7 +100,7 @@ document.addEventListener('click', e => { const b = e.target.closest('[data-say]
 let io;
 function reveal() { if (io) io.disconnect(); io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), {rootMargin: '0px 0px -7% 0px', threshold: .08});
   document.querySelectorAll('[data-r]').forEach(el => { const sib = [...el.parentElement.children].filter(c => c.hasAttribute('data-r')); el.style.setProperty('--d', Math.min(sib.indexOf(el), 10) * .075 + 's'); io.observe(el); }); }
-const letters = s => [...s].map((c, i) => c === ' ' ? ' ' : `<span class="ltr" style="--d:${(.12 + i * .045).toFixed(3)}s;--m:0">${esc(c)}</span>`).join('');
+const letters = s => { let n = 0; return s.split(' ').map(w => `<span class="w">${[...w].map(c => `<span class="ltr" style="--d:${(.12 + n++ * .045).toFixed(3)}s">${esc(c)}</span>`).join('')}</span>`).join(' '); };
 
 /* page change: two gradient panels sweep across, the new page loads behind them */
 const wipeA = document.querySelector('#wipe b:nth-child(1)'), wipeB = document.querySelector('#wipe b:nth-child(2)'); let wiping = false, ready = false;
@@ -138,32 +137,50 @@ async function route() {
 }
 addEventListener('hashchange', route);
 
+/* numbers shown on the site, always counted from the data */
+function siteStats() {
+  const phrases = new Set(); let maps = 0, quizzes = 0;
+  Object.values(D.games).forEach(g => { g.groups.forEach(x => x.items.forEach(i => phrases.add(i[0]))); (g.fixes || []).forEach(f => phrases.add(f[1])); (g.sayit || []).forEach(w => phrases.add(w[0])); maps += (g.maps || []).length; quizzes += g.quiz.length; });
+  D.chat.forEach(i => phrases.add(i[0])); D.survival.forEach(i => phrases.add(i[0])); D.hero.forEach(h => phrases.add(h[0]));
+  return {games: Object.keys(D.games).length, maps, phrases: phrases.size, phrasesLabel: Math.floor(phrases.size / 10) * 10 + '+', quizzes};
+}
+const MENU = [['cs2','CS2','Places and money','Места и деньги'],['valorant','Valorant','Used abilities','Потраченные умения'],['apex','Apex','Degrees and height','Градусы и высота'],['overwatch','Overwatch','Tracking ultimates','Трекинг ульт'],['rivals','Marvel Rivals','Tracking ultimates','Трекинг ульт'],['basics','Basics','The call formula','Формула колла']];
+
 /* home */
 function home() {
   document.title = 'Comms Diff: English callouts for competitive games';
   const line = 'There is one enemy on the balcony and he has very little health.';
   const ticker = D.hero.concat(D.games.cs2.groups[1].items.slice(0, 3).map(i => [i[0], '', i[1]]), D.games.apex.groups[1].items.slice(0, 2).map(i => [i[0], '', i[1]]));
   const tick = ticker.map(h => `<span><b>${esc(h[0])}</b><em>${esc(h[2])}</em></span>`).join('');
+  const st = siteStats();
   app.innerHTML = `
-  <section class="board" id="board"><div class="htitle"><h1 aria-label="Speak ranked">${letters('Speak')}<br>${letters('ranked')}</h1><p class="sub">Говори как в ранкеде: короткие фразы на английском</p></div>
-    <p class="hint"><span class="mouse">Drag the stickers around. </span>Tap one to hear it.<span class="ru"><span class="mouse">Двигай наклейки мышкой. </span>Нажми, чтобы услышать и увидеть перевод.</span></p></section>
+  <section class="menu">
+    <div class="mhead"><h1 aria-label="Speak ranked">${letters('Speak ranked')}</h1><p class="what">Short English callouts for Russian-speaking players<span class="ru">Короткие английские коллауты для русскоязычных игроков</span></p></div>
+    <nav class="mlist" aria-label="Main menu">
+      ${MENU.map(m => `<a class="mi" data-r style="--c:${ACCENT[m[0]]}" href="#/${m[0]}"><b>${m[1]}</b><span>${m[2]}<em>${m[3]}</em></span></a>`).join('')}
+      <button class="mi sm" data-r style="--c:var(--amber)" id="toBuild"><b>Build a call</b><span>Four parts, one second<em>Четыре части, одна секунда</em></span></button>
+      <a class="mi sm" data-r style="--c:var(--phosphor)" href="#/about"><b>Patch notes</b><span>About this project<em>О проекте</em></span></a>
+    </nav>
+    <div class="scene" id="board"><p class="hint"><span class="mouse">Drag the stickers around. </span>Tap one to hear it.<span class="ru"><span class="mouse">Двигай наклейки мышкой. </span>Нажми, чтобы услышать и увидеть перевод.</span></p></div>
+    <aside class="pcard" aria-label="Site statistics"><p class="pname">Player card<span>Карточка игрока</span></p><dl>
+      <div><dt>games<small>игр</small></dt><dd>${st.games}</dd></div><div><dt>maps<small>карт</small></dt><dd>${st.maps}</dd></div><div><dt>voiced phrases<small>фраз с озвучкой</small></dt><dd>${st.phrasesLabel}</dd></div><div><dt>quiz questions<small>вопросов в квизах</small></dt><dd>${st.quizzes}</dd></div></dl></aside>
+    <a class="ver" href="#/about">v2.0 · patch notes</a>
+  </section>
   <div class="mq" aria-hidden="true"><div>${tick}${tick}</div></div>
   <section class="band" id="slowS"><p class="slowcap" data-r>You have about one second before the moment is gone. School English needs more than that.<span class="ru">У тебя есть примерно секунда, потом момент упущен. Школьному английскому нужно больше.</span></p>
     <p class="slow" id="slow">${line.split(' ').map(w => `<span>${w}</span>`).join(' ')}</p>
     <p class="slowru">«На балконе один враг, и у него очень мало здоровья». Так правильно, но слишком долго.</p>
     <div class="fast" id="fast">${sticker('Last palace, low')}<p>Same information. Your team hears it in time.<span class="ru">«Последний на паласе, мало ХП». Смысл тот же, а команда успевает услышать.</span></p></div></section>
-  <section class="band" style="padding-top:0"><div class="panel" id="bld" data-r></div></section>
-  <section class="list"><h2 data-r>Pick your game. Each one speaks differently.<span class="ru">Выбери игру. В каждой говорят по-своему.</span></h2>
-    ${GAMES.map(k => `<a class="gm" data-r style="--h:${ACCENT[k]}" href="#/${k}"><b>${D.games[k].name}</b><div>${D.games[k].tagline}<span>${D.tagRu[k]}</span></div></a>`).join('')}
-    <a class="gm" data-r style="--h:${ACCENT.basics}" href="#/basics"><b>Basics</b><div>The call formula, chat words and what to say when you are lost.<span>Основы: формула колла, слова из чата и что сказать, если растерялся.</span></div></a></section>`;
+  <section class="band" style="padding-top:0"><div class="panel" id="bld" data-r></div></section>`;
   heroStickers(); builder('cs2', document.getElementById('bld'));
+  document.getElementById('toBuild').onclick = () => scrollTo2(document.getElementById('bld'));
   const words = [...document.querySelectorAll('#slow span')];
   new IntersectionObserver((en, o) => { if (!en[0].isIntersecting) return; o.disconnect();
     words.forEach((w, i) => setTimeout(() => w.classList.add('gone'), 550 + i * 150));
     setTimeout(() => document.getElementById('fast')?.classList.add('on'), 550 + words.length * 150 + 200);
   }, {threshold: .5}).observe(document.getElementById('slow'));
 }
-const SPOTS = [[.40,.02,-5,26],[.70,.05,4,-34],[.47,.20,3,18],[.80,.24,-6,-22],[.27,.28,-3,40],[.64,.34,7,30],[.03,.05,6,-44],[.03,.22,-7,24],[.86,.44,-4,-16]];
+const SPOTS = [[.40,.0,-3,26],[.74,.03,3,-34],[.08,.54,2,18],[.67,.27,-4,-22],[.36,.26,-2,40],[.54,.56,5,30],[.01,.02,4,-44],[.02,.28,-4,24],[.76,.55,-3,-16]];
 function heroStickers() {
   const b = document.getElementById('board'); let z = 10;
   D.hero.forEach(([t, g, ru], i) => {
