@@ -237,11 +237,12 @@ html.calm .sweep{display:none}
 .cluster .st i{color:var(--bg)}.cluster .st::before{display:none}
 .cluster .st:nth-child(2){margin-right:7vw}.cluster .st:nth-child(3){margin-right:1.5vw}
 @keyframes bobs{from{translate:0 -5px}to{translate:0 6px}}
-.ghead:has(h1.long) .cluster,.ghead:has(h1.mid) .cluster{top:auto;bottom:34px;flex-direction:row;align-items:center;gap:30px}
+.ghead:has(h1.long) .cluster,.ghead:has(h1.mid) .cluster{top:auto;bottom:100px;flex-direction:row;align-items:center;gap:22px}
 .ghead:has(h1.long) .cluster .st:nth-child(3),.ghead:has(h1.mid) .cluster .st:nth-child(3){display:none}
 .ghead:has(h1.long) .cluster .st:nth-child(2),.ghead:has(h1.mid) .cluster .st:nth-child(2){margin-right:0}
 .ghead:has(h1.long) .lead,.ghead:has(h1.long) .leadru,.ghead:has(h1.mid) .lead,.ghead:has(h1.mid) .leadru{max-width:20em}
 @media (max-width:1180px){.ghead:has(h1.long) .cluster .st:nth-child(2),.ghead:has(h1.mid) .cluster .st:nth-child(2){display:none}}
+@media (max-width:1100px){.ghead:has(h1.long) .cluster,.ghead:has(h1.mid) .cluster{display:none}}
 .sec{display:grid;grid-template-columns:minmax(200px,3fr) 9fr;gap:20px clamp(20px,4vw,60px);padding:clamp(40px,5vw,76px) var(--pad);align-items:start;border-bottom:1px solid var(--line)}
 .sech{position:sticky;top:26px}
 .sech h2{font-size:clamp(40px,4.7vw,76px)}
