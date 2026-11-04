@@ -3,7 +3,7 @@ const V = 9; // bump when audio files change, so browsers don't replay old clips
 const D = window.D;
 const app = document.getElementById('app'), root = document.documentElement;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const ACCENT = {cs2:'#E8C15A',valorant:'#FF6B7E',apex:'#47CDB8',overwatch:'#F58F4A',rivals:'#B58CF0',basics:'#7DB3E8'};
+const ACCENT = {cs2:'#E8C15A',valorant:'#FF6B7E',apex:'#47CDB8',overwatch:'#F58F4A',rivals:'#B58CF0',basics:'#7DB3E8',about:'#FFB547'};
 const MEANING = {One:'Один',Two:'Двое',Three:'Трое',Last:'Последний',Palace:'на паласе','B apps':'на квартирах B',Mid:'на миде',Long:'на лонге',Window:'в окне',Low:'мало ХП',Lit:'подбит','One AWP':'один со снайперкой','Smoke up':'смоук стоит',Rushing:'идут рашем','Fall back':'откатываемся',Push:'давим',Rotate:'перекидываемся',Hold:'держим позицию','A main':'на A мейне','B long':'на B лонге',Heaven:'на хевене',Garage:'в гараже','Hit 90':'попал на 90','No dash':'рывка нет','Op up':'есть Оператор','No util':'умений нет','Ult ready':'ульта готова','60':'60 градусов','150':'150 градусов','240':'240 градусов','330':'330 градусов',Cracked:'щит сломан','One shot':'на один выстрел',Knocked:'нокнут','High ground':'на высоте','Push now':'давим сейчас',Reset:'отходим и лечимся','Take high ground':'занимаем высоту'};
 const COL_RU = {'How many':'Сколько','Where':'Где',"What's happening":'Что происходит','What we do':'Что делаем'};
 
@@ -147,8 +147,8 @@ document.getElementById('nav').innerHTML = GAMES.map(k => `<a href="#/${k}">${D.
 function draw() {
   const k = location.hash.replace(/^#\/?/, '');
   stop();
-  root.dataset.g = D.games[k] ? k : k === 'basics' ? 'basics' : 'home';
-  if (D.games[k]) game(k); else if (k === 'basics') basics(); else home();
+  root.dataset.g = D.games[k] ? k : k === 'basics' || k === 'about' ? k : 'home';
+  if (D.games[k]) game(k); else if (k === 'basics') basics(); else if (k === 'about') about(); else home();
   document.querySelectorAll('#nav a').forEach(a => a.getAttribute('href') === '#/' + k ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
   if (lenis) lenis.scrollTo(0, {immediate: true, force: true}); scrollTo({top: 0, behavior: 'instant'});
   reveal();
@@ -324,7 +324,7 @@ function game(k) {
   if (g.sayit) add('say', 'How it sounds', `<div class="says">${g.sayit.map(w => `<div data-r>${sticker(w[0])}<span>${esc(w[1])}</span></div>`).join('')}</div>`);
   add('quiz', 'Quick quiz', `<div class="panel qz" id="qz" data-r></div>`);
   const jumps = [['phrases', 'Phrases', 'Фразы']].concat(g.compass ? [['compass', 'Compass drill', 'Компас']] : [], g.maps ? [['maps', 'Maps', 'Карты']] : [], g.fixes ? [['fix', 'Say it right', 'Ошибки']] : [], [['say', 'How it sounds', 'Произношение'], ['quiz', 'Quiz', 'Квиз']]);
-  app.innerHTML = `<section class="ghead"><div class="cluster">${g.groups.concat(g.groups).slice(0, 3).map((x, i) => sticker(x.items[i === 2 ? 1 : 0][0], `style="--tilt:${[-6, 5, -3][i]}deg;--bob:${6 + i * 1.4}s;animation-delay:-${i}s"`)).join('')}</div><h1 class="${g.name.length > 9 ? 'long' : g.name.length > 4 ? 'mid' : ''}" aria-label="${g.name}">${letters(g.name)}</h1><p class="lead" data-r>${g.tagline}</p><p class="leadru" data-r>${D.tagRu[k]}</p><div class="jump" data-r>${jumps.map(j => `<button data-to="${j[0]}">${j[1]} <span style="opacity:.7">${j[2]}</span></button>`).join('')}</div></section>` +
+  app.innerHTML = `<section class="ghead"><div class="cluster">${g.groups.concat(g.groups).slice(0, 3).map((x, i) => sticker(x.items[i === 2 ? 1 : 0][0], `style="--tilt:${[-6, 5, -3][i]}deg;--bob:${6 + i * 1.4}s;animation-delay:-${i}s"`)).join('')}</div><h1 class="${g.name.length > 9 ? 'long' : g.name.length > 4 ? 'mid' : ''}" aria-label="${g.name}">${letters(g.name)}</h1><p class="lead" data-r>${g.tagline}</p><p class="leadru" data-r>${D.tagRu[k]}</p><div class="jump" data-r>${jumps.map(j => `<button data-to="${j[0]}">${j[1]} <span>${j[2]}</span></button>`).join('')}</div></section>` +
     secs.map(s => `<section class="sec" id="s-${s.id}"><div class="sech" data-r><h2>${s.title}</h2><span>${ruTitle(s.title)}</span></div><div>${s.html}</div></section>`).join('');
   app.querySelector('.jump').addEventListener('click', e => { const b = e.target.closest('button'); if (b) scrollTo2(document.getElementById('s-' + b.dataset.to)); });
   app.querySelectorAll('.mp').forEach(b => b.onclick = () => openMap(g, +b.dataset.map));
@@ -381,6 +381,24 @@ function compass(host) {
     const deg = off === 1 ? 'degree' : 'degrees';
     res.innerHTML = off === 0 ? 'Perfect call, right on target.<span>Идеально, точно в цель.</span>' : off <= 15 ? `Good call, only ${off} ${deg} off.<span>Отлично, ошибка всего ${off}°.</span>` : `${off} ${deg} off. The dotted line shows ${bearing}.<span>Ошибка ${off}°. Пунктир показывает ${bearing}.</span>`; });
   host.querySelector('#nx').onclick = fresh; fresh();
+}
+
+/* patch notes: what the project is and how it was made */
+function about() {
+  document.title = 'Patch notes | Comms Diff';
+  const st = siteStats();
+  const block = (en, ru, body) => `<section class="sec"><div class="sech" data-r><h2>${en}</h2><span>${ru}</span></div><div class="pnote" data-r>${body}</div></section>`;
+  const para = (en, ru) => `<p>${en}<span class="ru">${ru}</span></p>`;
+  const item = (en, ru) => `<li>${en}<span class="ru">${ru}</span></li>`;
+  app.innerHTML = `<section class="ghead"><h1 class="mid" aria-label="Patch notes">${letters('Patch notes')}</h1><p class="lead" data-r>What this project is, who it is for and how it was made.</p><p class="leadru" data-r>Что это за проект, для кого он и как сделан.</p></section>` +
+  block('Mission', 'Цель', para('Help Russian-speaking players talk to their team in English, quickly and confidently.', 'Помочь русскоязычным игрокам говорить с командой на английском быстро и уверенно.') +
+    para('School English is too slow for ranked. "There is one enemy on the balcony and he has very little health" is correct, but the round is over before you finish. "Last palace, low" says the same thing in one second.', 'Школьный английский слишком медленный для ранкеда. Длинная фраза правильная, но раунд закончится раньше, чем ты её договоришь. «Last palace, low» говорит то же самое за секунду.')) +
+  block('Who it\'s for', 'Для кого', para('Russian-speaking players at about B1 level who end up in international lobbies.', 'Русскоязычные игроки примерно уровня B1, которые попадают в международные лобби.')) +
+  block('How the phrases were chosen', 'Как выбирались фразы', para('They were collected from the way players really talk in the community, with the help of AI, and then checked against my own experience of playing these games. That is why there is no Dota or LoL here: I have not played them.', 'Фразы собраны из того, как реально говорят игроки в сообществе, с помощью ИИ, и проверены моим личным игровым опытом. Поэтому здесь нет Dota и LoL: в них я не играл.')) +
+  block('The rule', 'Правило', para('Every game has its own language, so don\'t mix them. Nobody says "cracked" in CS2.', 'У каждой игры свой язык, поэтому не смешивай их. В CS2 никто не говорит «cracked».')) +
+  block('What\'s inside', 'Что внутри', `<ul class="plist">${item(`${st.games} games`, 'игр')}${item(`${st.maps} maps`, 'карт')}${item(`${st.phrasesLabel} voiced phrases`, 'фраз с озвучкой')}${item(`${st.quizzes} quiz questions`, 'вопросов в квизах')}${item('A call builder', 'конструктор коллов')}${item('A compass drill for Apex', 'тренажёр компаса для Apex')}</ul>`) +
+  block('Credits', 'Титры', `<ul class="plist one">${item('Made by Danil Navoytsev', 'Автор: Данил Навойцев')}${item('Voices are generated by a neural speech model', 'Голоса созданы нейросетью')}${item('Maps: <a href="https://totalcsgo.com/callouts" rel="noopener">totalcsgo.com</a> and the <a href="https://blog.exitlag.com/valorant-callouts" rel="noopener">ExitLag Blog</a>', 'Карты: totalcsgo.com и ExitLag Blog')}${item('Game names belong to their owners', 'Названия игр принадлежат их владельцам')}</ul>`) +
+  block('Version history', 'История версий', `<dl class="vers"><div><dt>v2.0</dt><dd>New design, main menu, briefing map, settings and patch notes.<span class="ru">Новый дизайн, главное меню, брифинг-карта, настройки и patch notes.</span></dd></div><div><dt>v1.0</dt><dd>First version: phrases, maps, voice and quizzes.<span class="ru">Первая версия: фразы, карты, озвучка и квизы.</span></dd></div></dl>`);
 }
 
 /* basics */
