@@ -102,8 +102,46 @@ function reveal() { if (io) io.disconnect(); io = new IntersectionObserver(es =>
   document.querySelectorAll('[data-r]').forEach(el => { const sib = [...el.parentElement.children].filter(c => c.hasAttribute('data-r')); el.style.setProperty('--d', Math.min(sib.indexOf(el), 10) * .075 + 's'); io.observe(el); }); }
 const letters = s => { let n = 0; return s.split(' ').map(w => `<span class="w">${[...w].map(c => `<span class="ltr" style="--d:${(.12 + n++ * .045).toFixed(3)}s">${esc(c)}</span>`).join('')}</span>`).join(' '); };
 
-/* page change: two gradient panels sweep across, the new page loads behind them */
-const wipeA = document.querySelector('#wipe b:nth-child(1)'), wipeB = document.querySelector('#wipe b:nth-child(2)'); let wiping = false, ready = false;
+/* page change: a short loading screen with a tip, 600 ms at most */
+const TIPS = [
+  ['Nobody says "cracked" in CS2.', 'В CS2 никто не говорит «cracked».'],
+  ['Say the number first, so your team knows the danger.', 'Сначала назови число, чтобы команда понимала опасность.'],
+  ['A good call takes one or two seconds.', 'Хороший колл длится одну-две секунды.'],
+  ['Saying it with a mistake beats saying nothing.', 'Сказать с ошибкой лучше, чем промолчать.'],
+  ['In Apex, use compass degrees instead of place names.', 'В Apex вместо названий мест называй градусы компаса.'],
+  ['It is "the spike" in Valorant and "the bomb" in CS2.', 'В Valorant это «spike», а в CS2 «bomb».'],
+  ['"Cache" sounds like "cash".', '«Cache» звучит как «cash».'],
+  ['Say "Flash for me", not "Throw me flash".', 'Говори «Flash for me», а не «Throw me flash».'],
+  ['Learn five places on a map first.', 'Для начала выучи пять мест на карте.'],
+  ['"Peel for me" asks your team to pull an enemy off you.', '«Peel for me» значит: отгоните от меня врага.'],
+  ['In Overwatch and Rivals, call out the big ultimates.', 'В Overwatch и Rivals сообщай о главных ультах.'],
+  ['"Drop me" asks a teammate to buy you a gun.', '«Drop me» значит: купи мне оружие.'],
+  ['"Jett dashed" means she can\'t escape now.', '«Jett dashed» значит, что сбежать Джетт уже не сможет.'],
+];
+const wipeBox = document.getElementById('wipe'), wipeBar = document.getElementById('wipeBar'), wipeTip = document.getElementById('wipeTip'), wipeRu = document.getElementById('wipeRu');
+let wiping = false, ready = false, lastTip = -1;
+const pause = ms => new Promise(r => setTimeout(r, ms));
+async function route() {
+  if (!ready || !cfg.anim || wiping) { ready = true; draw(); return; }
+  wiping = true;
+  let n; do { n = Math.floor(Math.random() * TIPS.length); } while (n === lastTip); lastTip = n;
+  wipeTip.textContent = TIPS[n][0]; wipeRu.textContent = TIPS[n][1];
+  const k = location.hash.replace(/^#\/?/, '');
+  wipeBar.style.background = ACCENT[k] || 'var(--signal)';
+  wipeBox.style.display = 'flex';
+  try {
+    wipeBar.animate([{transform: 'scaleX(0)'}, {transform: 'scaleX(1)'}], {duration: 480, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards'});
+    wipeBox.animate([{opacity: 0}, {opacity: 1}], {duration: 110, easing: 'ease-out', fill: 'forwards'});
+    await pause(130);
+    draw();
+    await pause(350);
+    await Promise.race([wipeBox.animate([{opacity: 1}, {opacity: 0}], {duration: 110, easing: 'ease-in', fill: 'forwards'}).finished.catch(() => {}), pause(160)]);
+  } finally {
+    wipeBar.getAnimations().concat(wipeBox.getAnimations()).forEach(a => a.cancel());
+    wipeBox.style.display = 'none';
+    wiping = false;
+  }
+}
 const GAMES = Object.keys(D.games);
 document.getElementById('nav').innerHTML = GAMES.map(k => `<a href="#/${k}">${D.games[k].name}</a>`).join('') + '<a href="#/basics">Basics</a>';
 function draw() {
@@ -114,26 +152,6 @@ function draw() {
   document.querySelectorAll('#nav a').forEach(a => a.getAttribute('href') === '#/' + k ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
   if (lenis) lenis.scrollTo(0, {immediate: true, force: true}); scrollTo({top: 0, behavior: 'instant'});
   reveal();
-}
-const wipeBox = document.getElementById('wipe');
-const settled = a => Promise.race([a.finished.catch(() => {}), new Promise(r => setTimeout(r, 1400))]);
-async function route() {
-  if (!ready || !cfg.anim || wiping) { ready = true; draw(); return; }
-  wiping = true;
-  wipeBox.style.display = 'block';
-  try {
-    const opt = {duration: 620, easing: 'cubic-bezier(.65,0,.15,1)', fill: 'forwards'};
-    wipeB.animate([{transform: 'translateY(102%)'}, {transform: 'translateY(0)'}], opt);
-    await settled(wipeA.animate([{transform: 'translateY(102%)'}, {transform: 'translateY(0)'}], {...opt, delay: 90}));
-    draw();
-    const out = {duration: 760, easing: 'cubic-bezier(.65,0,.15,1)', fill: 'forwards'};
-    wipeA.animate([{transform: 'translateY(0)'}, {transform: 'translateY(-102%)'}], out);
-    await settled(wipeB.animate([{transform: 'translateY(0)'}, {transform: 'translateY(-102%)'}], {...out, delay: 90}));
-  } finally {
-    wipeA.getAnimations().concat(wipeB.getAnimations()).forEach(a => a.cancel());
-    wipeBox.style.display = 'none';
-    wiping = false;
-  }
 }
 addEventListener('hashchange', route);
 
