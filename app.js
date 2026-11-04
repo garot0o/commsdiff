@@ -3,7 +3,7 @@ const V = 9; // bump when audio files change, so browsers don't replay old clips
 const D = window.D;
 const app = document.getElementById('app'), root = document.documentElement;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const ACCENT = {cs2:'#FFB04A',valorant:'#FF5A6E',apex:'#3DDAC3',overwatch:'#FF8F45',rivals:'#B880FF',basics:'#6FB6FF'};
+const ACCENT = {cs2:'#E8C15A',valorant:'#FF6B7E',apex:'#47CDB8',overwatch:'#F58F4A',rivals:'#B58CF0',basics:'#7DB3E8'};
 const MEANING = {One:'Один',Two:'Двое',Three:'Трое',Last:'Последний',Palace:'на паласе','B apps':'на квартирах B',Mid:'на миде',Long:'на лонге',Window:'в окне',Low:'мало ХП',Lit:'подбит','One AWP':'один со снайперкой','Smoke up':'смоук стоит',Rushing:'идут рашем','Fall back':'откатываемся',Push:'давим',Rotate:'перекидываемся',Hold:'держим позицию','A main':'на A мейне','B long':'на B лонге',Heaven:'на хевене',Garage:'в гараже','Hit 90':'попал на 90','No dash':'рывка нет','Op up':'есть Оператор','No util':'умений нет','Ult ready':'ульта готова','60':'60 градусов','150':'150 градусов','240':'240 градусов','330':'330 градусов',Cracked:'щит сломан','One shot':'на один выстрел',Knocked:'нокнут','High ground':'на высоте','Push now':'давим сейчас',Reset:'отходим и лечимся','Take high ground':'занимаем высоту'};
 const COL_RU = {'How many':'Сколько','Where':'Где',"What's happening":'Что происходит','What we do':'Что делаем'};
 
@@ -55,7 +55,7 @@ function parallax() { px += ((mx / innerWidth - .5) - px) * .05; py += ((my / in
 
 /* small sparkle when a sticker is pressed */
 function sparks(x, y, count = 12, spread = 80) { if (!fxOn) return;
-  for (let i = 0; i < count; i++) { const s = document.createElement('i'); s.className = 'spark'; s.style.cssText = `left:${x}px;top:${y}px;background:${['#fff','#FF5C9E','#A23FD8','#8E7CFF'][i % 4]}`; document.body.append(s);
+  for (let i = 0; i < count; i++) { const s = document.createElement('i'); s.className = 'spark'; s.style.cssText = `left:${x}px;top:${y}px;background:${['#EFE9E1','#FFB547','#EFE9E1','#EA4656'][i % 4]}`; document.body.append(s);
     const a = Math.random() * 6.3, r = spread * (.5 + Math.random()); s.animate([{transform: 'translate(-50%,-50%) scale(1)', opacity: 1}, {transform: `translate(calc(-50% + ${Math.cos(a) * r}px),calc(-50% + ${Math.sin(a) * r + 24}px)) scale(.15)`, opacity: 0}], {duration: 800 + Math.random() * 520, easing: 'cubic-bezier(.16,1,.3,1)'}).onfinish = () => s.remove(); } }
 
 /* audio: pre-rendered neural clips, browser speech only as a fallback */
@@ -78,7 +78,7 @@ document.addEventListener('click', e => { const b = e.target.closest('[data-say]
 let io;
 function reveal() { if (io) io.disconnect(); io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), {rootMargin: '0px 0px -7% 0px', threshold: .08});
   document.querySelectorAll('[data-r]').forEach(el => { const sib = [...el.parentElement.children].filter(c => c.hasAttribute('data-r')); el.style.setProperty('--d', Math.min(sib.indexOf(el), 10) * .075 + 's'); io.observe(el); }); }
-const letters = s => [...s].map((c, i) => c === ' ' ? ' ' : `<span class="ltr" style="--d:${(.12 + i * .045).toFixed(3)}s;--m:${(i / Math.max(1, s.length - 1)).toFixed(2)}">${esc(c)}</span>`).join('');
+const letters = s => [...s].map((c, i) => c === ' ' ? ' ' : `<span class="ltr" style="--d:${(.12 + i * .045).toFixed(3)}s;--m:0">${esc(c)}</span>`).join('');
 
 /* page change: two gradient panels sweep across, the new page loads behind them */
 const wipeA = document.querySelector('#wipe b:nth-child(1)'), wipeB = document.querySelector('#wipe b:nth-child(2)'); let wiping = false, ready = false;
@@ -141,13 +141,12 @@ function home() {
   }, {threshold: .5}).observe(document.getElementById('slow'));
 }
 const SPOTS = [[.40,.02,-5,26],[.70,.05,4,-34],[.47,.20,3,18],[.80,.24,-6,-22],[.27,.28,-3,40],[.64,.34,7,30],[.03,.05,6,-44],[.03,.22,-7,24],[.86,.44,-4,-16]];
-const FILLS = [['linear-gradient(115deg,#4A36E8,#FF5C9E)','#fff'],['#F4F3FF','#0D0E2B'],['linear-gradient(115deg,#FF5C9E,#FF9CC8)','#0D0E2B'],['#F4F3FF','#0D0E2B'],['linear-gradient(115deg,#4A36E8,#8E7CFF)','#fff'],['linear-gradient(115deg,#A23FD8,#FF5C9E)','#fff'],['#F4F3FF','#0D0E2B'],['linear-gradient(115deg,#6757F0,#B79BFF)','#fff'],['linear-gradient(115deg,#FF5C9E,#FFC4DC)','#0D0E2B']];
 function heroStickers() {
   const b = document.getElementById('board'); let z = 10;
   D.hero.forEach(([t, g, ru], i) => {
     const [x, y, r, depth] = SPOTS[i], d = document.createElement('div');
     d.className = 'ht'; d.tabIndex = 0; d.dataset.depth = depth; d.setAttribute('role', 'button'); d.setAttribute('aria-label', `${t}, ${g}. Hear it and see the translation`);
-    d.style.cssText = `left:${x*100}%;top:${y*100}%;--r:${r}deg;--f:${FILLS[i][0]};--t:${FILLS[i][1]};--bob:${6 + (i % 4) * 1.3}s`;
+    d.style.cssText = `left:${x*100}%;top:${y*100}%;--r:${r}deg;--bob:${6 + (i % 4) * 1.3}s`;
     d.innerHTML = `<span class="flo" style="animation-delay:-${i * .9}s"><span class="in"><span class="fc">${esc(t)}<small>${g}</small></span><span class="fc bk">${esc(ru)}</span></span></span>`;
     b.append(d);
     setTimeout(() => d.classList.add('on'), 250 + i * 130);
@@ -239,14 +238,13 @@ function quiz(k, g, host) {
 
 /* Apex compass drill */
 function compass(host) {
-  const ticks = [...Array(36)].map((_, i) => { const a = i * 10 * Math.PI / 180, big = i % 9 === 0, r1 = big ? 150 : 166, r2 = 182; return `<line x1="${200 + r1 * Math.sin(a)}" y1="${200 - r1 * Math.cos(a)}" x2="${200 + r2 * Math.sin(a)}" y2="${200 - r2 * Math.cos(a)}" stroke="#fff" stroke-opacity="${big ? 1 : .55}" stroke-width="${big ? 6 : 3}" stroke-linecap="round"/>`; }).join('');
+  const ticks = [...Array(36)].map((_, i) => { const a = i * 10 * Math.PI / 180, big = i % 9 === 0, r1 = big ? 150 : 166, r2 = 182; return `<line x1="${200 + r1 * Math.sin(a)}" y1="${200 - r1 * Math.cos(a)}" x2="${200 + r2 * Math.sin(a)}" y2="${200 - r2 * Math.cos(a)}" stroke="#EFE9E1" stroke-opacity="${big ? 1 : .55}" stroke-width="${big ? 6 : 3}" stroke-linecap="round"/>`; }).join('');
   host.innerHTML = `<svg viewBox="0 0 400 400" id="dial" role="img" aria-label="Compass. Click the ring where the bearing should be.">
-    <defs><linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4A36E8"/><stop offset="1" stop-color="#3DDAC3"/></linearGradient><linearGradient id="face" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#17154A"/><stop offset="1" stop-color="#0D2A3E"/></linearGradient></defs>
-    <circle cx="200" cy="200" r="194" fill="url(#face)" stroke="url(#rim)" stroke-width="8"/>${ticks}
+        <circle cx="200" cy="200" r="194" fill="#17161A" stroke="#47CDB8" stroke-width="5"/>${ticks}
     <text class="tk" x="200" y="84">N 0</text><text class="tk" x="316" y="200">E 90</text><text class="tk" x="200" y="316">S 180</text><text class="tk" x="84" y="200">W 270</text>
-    <g class="needle" id="ans" style="opacity:0"><line x1="200" y1="200" x2="200" y2="30" stroke="#fff" stroke-width="5" stroke-dasharray="3 11" stroke-linecap="round"/></g>
-    <g class="needle" id="ndl" style="opacity:0"><line x1="200" y1="200" x2="200" y2="30" stroke="#FF5C9E" stroke-width="7" stroke-linecap="round"/><circle cx="200" cy="30" r="12" fill="#FF5C9E"/></g>
-    <circle cx="200" cy="200" r="10" fill="#fff"/></svg>
+    <g class="needle" id="ans" style="opacity:0"><line x1="200" y1="200" x2="200" y2="30" stroke="#7DF5A8" stroke-width="5" stroke-dasharray="3 11" stroke-linecap="round"/></g>
+    <g class="needle" id="ndl" style="opacity:0"><line x1="200" y1="200" x2="200" y2="30" stroke="#FFB547" stroke-width="7" stroke-linecap="round"/><circle cx="200" cy="30" r="12" fill="#FFB547"/></g>
+    <circle cx="200" cy="200" r="10" fill="#EFE9E1"/></svg>
     <div><p class="target" id="tgt"></p><p class="res" id="res" aria-live="polite"></p><button class="plain" id="nx">New enemy / Новый враг</button></div>`;
   const dial = host.querySelector('#dial'), ndl = host.querySelector('#ndl'), ans = host.querySelector('#ans'), tgt = host.querySelector('#tgt'), res = host.querySelector('#res'); let bearing, done;
   const fresh = () => { bearing = Math.floor(Math.random() * 24) * 15; done = false; tgt.textContent = `Enemy, ${bearing}`; res.innerHTML = 'Click the ring where this enemy is. North is 0, and numbers grow clockwise.<span>Нажми на кольцо там, где стоит враг. Север равен 0, числа растут по часовой стрелке.</span>'; ndl.style.opacity = 0; ans.style.opacity = 0; };
