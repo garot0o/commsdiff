@@ -46,7 +46,7 @@ function frame(t) {
   const h = document.documentElement.scrollHeight - innerHeight, y = scrollY;
   bar.style.transform = `scaleX(${h > 0 ? Math.min(1, y / h) : 0})`;
   toTop.classList.toggle('on', y > innerHeight * .6);
-  parallax(); drawGlow();
+  parallax(); drawGlow(); drawBriefing();
   requestAnimationFrame(frame);
 }
 function scrollTo2(el) { lenis ? lenis.scrollTo(el, cfg.anim ? {offset: -14, duration: 1.5} : {offset: -14, immediate: true, force: true}) : el.scrollIntoView(); }
@@ -164,6 +164,72 @@ function siteStats() {
 }
 const MENU = [['cs2','CS2','Places and money','Места и деньги'],['valorant','Valorant','Used abilities','Потраченные умения'],['apex','Apex','Degrees and height','Градусы и высота'],['overwatch','Overwatch','Tracking ultimates','Трекинг ульт'],['rivals','Marvel Rivals','Tracking ultimates','Трекинг ульт'],['basics','Basics','The call formula','Формула колла']];
 
+/* briefing: a folded paper map opens while you scroll, all of it driven by one progress value */
+const MARKS = [['A main', 54.4, 20.8], ['Mid', 50.6, 50], ['B apps', 16.9, 43.3], ['Heaven', 78.1, 10.8]];
+const CAPS = [['In ranked you have one second', 'В ранкеде у тебя одна секунда'], ['Name the place', 'Назови место'], ['Say the number', 'Назови число']];
+const ARENA = `<defs>
+  <g id="arLines" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round">
+    <path d="M60 210h150v30h110v-10h60v-60h-20V80h150v20h20V100h190v150H610v20h0v50h130v130H610V310H490v60H435v100h55v90H340v-90h55V370h-75v-20h-40v50H280v90H90V330h60V310H60z"/>
+    <path d="M560 40h130v50H560zM530 100v-10h30M320 230h170v40M210 330h70"/>
+  </g>
+</defs>`;
+const panel = (x, y) => `<div class="pf"><svg viewBox="${x} ${y} 400 300" preserveAspectRatio="none" aria-hidden="true"><use href="#arPaper"/></svg><i class="shd"></i></div><div class="pb"><i class="shd"></i></div>`;
+function briefingHtml() {
+  const grid = [...Array(15)].map((_, i) => `<path d="M${i * 60 + 10} 0V600"/>`).join('') + [...Array(11)].map((_, i) => `<path d="M0 ${i * 60}H800"/>`).join('');
+  return `<section class="brief" id="brief" aria-label="Tactical briefing map">
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">${ARENA}<defs><g id="arPaper">
+      <rect width="800" height="600" fill="#EDE4D3"/><g stroke="#B9AD9A" stroke-width="1">${grid}</g>
+      <rect x="530" y="100" width="190" height="150" fill="#E3B9A6"/><rect x="90" y="330" width="190" height="160" fill="#E3B9A6"/>
+      <g style="color:#2B2528"><use href="#arLines"/></g>
+      <g fill="#6E1423" font-family="Anton,Impact,sans-serif"><text x="610" y="195" font-size="66">A</text><text x="165" y="430" font-size="66">B</text></g>
+      <path d="M415 540V390M415 390L300 345" fill="none" stroke="#C4283A" stroke-width="4" stroke-dasharray="12 9"/><path d="M415 390l-9 16h18z" fill="#C4283A"/>
+      <g fill="#4A4246" font-family="ui-monospace,Consolas,monospace" font-size="15"><text x="24" y="572">Training arena, not a real map</text><text x="24" y="34">Field sheet 07</text></g>
+    </g></defs></svg>
+    <div class="bstage" data-overflow>
+      <div class="bcap">${CAPS.map((c, i) => `<p class="cp" data-c="${i}">${c[0]}<span>${c[1]}</span></p>`).join('')}<button class="plain bbtn" id="brBuild">Build a call <span>Собрать колл</span></button></div>
+      <div class="bwrap"><div class="bmap" id="bmap">
+        <div class="pn bl">${panel(0, 300)}</div>
+        <div class="pn br wing" id="wingB">${panel(400, 300)}</div>
+        <div class="flap" id="flap"><div class="pn tl">${panel(0, 0)}</div><div class="pn tr wing" id="wingT">${panel(400, 0)}</div></div>
+        <div class="glarebox"><i id="glare"></i></div>
+        <div class="radar" id="radar"><i class="sweep" id="sweep"></i><svg viewBox="0 0 800 600" preserveAspectRatio="none" aria-hidden="true"><g stroke="#7DF5A8" stroke-opacity=".3" stroke-width="1">${grid}</g><g stroke="#7DF5A8" stroke-opacity=".45" fill="none"><circle cx="400" cy="300" r="120"/><circle cx="400" cy="300" r="240"/><circle cx="400" cy="300" r="360"/></g><g style="color:#7DF5A8"><use href="#arLines"/></g></svg></div>
+        ${MARKS.map((m, i) => `<button class="mk" data-m="${i}" data-say="${m[0]}" style="left:${m[1]}%;top:${m[2]}%" aria-label="Hear: ${m[0]}">${m[0]}</button>`).join('')}
+      </div></div>
+    </div>
+  </section>`;
+}
+let brief = null, briefLast = -1;
+function initBriefing() {
+  brief = document.getElementById('brief'); briefLast = -1;
+  const el = id => document.getElementById(id);
+  Object.assign(brief, {m: el('bmap'), flap: el('flap'), wb: el('wingB'), wt: el('wingT'), glare: el('glare'), radar: el('radar'), sweep: el('sweep'), btn: el('brBuild'),
+    caps: [...brief.querySelectorAll('.cp')], marks: [...brief.querySelectorAll('.mk')], shFlap: [...el('flap').querySelectorAll('.shd')], shWing: [...brief.querySelectorAll('.wing .shd')]});
+  brief.btn.onclick = () => scrollTo2(document.getElementById('bld'));
+}
+const seg = (p, a, b) => Math.min(1, Math.max(0, (p - a) / (b - a)));
+const easeIO = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+function drawBriefing() {
+  if (!brief || !brief.isConnected) return;
+  const r = brief.getBoundingClientRect(), range = r.height - innerHeight;
+  const p = !cfg.anim ? 1 : range > 0 ? Math.min(1, Math.max(0, -r.top / range)) : 1;
+  const small = innerWidth <= 860, key = p.toFixed(4) + small + cfg.anim;
+  brief.sweep.classList.toggle('live', cfg.anim && p > .5 && r.bottom > 0 && r.top < innerHeight);
+  if (key === briefLast) return; briefLast = key;
+  const fl = easeIO(seg(p, .02, small ? .42 : .24)), wi = small ? 1 : easeIO(seg(p, .22, .46));
+  brief.flap.style.transform = `rotateX(${-180 * (1 - fl)}deg)`;
+  brief.wb.style.transform = brief.wt.style.transform = `rotateY(${-180 * (1 - wi)}deg)`;
+  brief.m.style.transform = `translate(${25 * (1 - wi) * (small ? 0 : 1)}%,${-25 * (1 - fl)}%) rotateX(${16 * (1 - fl)}deg) rotateZ(${-3 * (1 - wi)}deg) scale(${.92 + .08 * fl})`;
+  const fs = Math.sin(Math.PI * fl) * .5, ws = Math.sin(Math.PI * wi) * .5;
+  brief.shFlap.forEach(e => { e.style.opacity = fs; }); brief.shWing.forEach(e => { e.style.opacity = Math.max(ws, e.closest('.flap') ? fs : 0); });
+  const g = seg(p, .46, .58);
+  brief.glare.style.transform = `translateX(${-130 + 330 * g}%) skewX(-16deg)`; brief.glare.style.opacity = g > 0 && g < 1 ? 1 : 0;
+  brief.radar.style.opacity = seg(p, .54, .64);
+  brief.marks.forEach((m, i) => m.classList.toggle('on', p >= .66 + i * .06));
+  const c = p < .36 ? 0 : p < .68 ? 1 : 2;
+  brief.caps.forEach((e, i) => e.classList.toggle('on', !cfg.anim || i === c));
+  brief.btn.classList.toggle('on', p >= .9);
+}
+
 /* home */
 function home() {
   document.title = 'Comms Diff: English callouts for competitive games';
@@ -184,6 +250,7 @@ function home() {
       <div><dt>games<small>игр</small></dt><dd>${st.games}</dd></div><div><dt>maps<small>карт</small></dt><dd>${st.maps}</dd></div><div><dt>voiced phrases<small>фраз с озвучкой</small></dt><dd>${st.phrasesLabel}</dd></div><div><dt>quiz questions<small>вопросов в квизах</small></dt><dd>${st.quizzes}</dd></div></dl></aside>
     <a class="ver" href="#/about">v2.0 · patch notes</a>
   </section>
+  ${briefingHtml()}
   <div class="mq" aria-hidden="true"><div>${tick}${tick}</div></div>
   <section class="band" id="slowS"><p class="slowcap" data-r>You have about one second before the moment is gone. School English needs more than that.<span class="ru">У тебя есть примерно секунда, потом момент упущен. Школьному английскому нужно больше.</span></p>
     <p class="slow" id="slow">${line.split(' ').map(w => `<span>${w}</span>`).join(' ')}</p>
@@ -192,6 +259,7 @@ function home() {
   <section class="band" style="padding-top:0"><div class="panel" id="bld" data-r></div></section>`;
   heroStickers(); builder('cs2', document.getElementById('bld'));
   document.getElementById('toBuild').onclick = () => scrollTo2(document.getElementById('bld'));
+  initBriefing();
   const words = [...document.querySelectorAll('#slow span')];
   new IntersectionObserver((en, o) => { if (!en[0].isIntersecting) return; o.disconnect();
     words.forEach((w, i) => setTimeout(() => w.classList.add('gone'), 550 + i * 150));
